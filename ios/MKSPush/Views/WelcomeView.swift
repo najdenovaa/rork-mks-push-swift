@@ -139,15 +139,15 @@ struct WelcomeView: View {
 
     private var legalLinks: some View {
         HStack(spacing: 8) {
-            linkButton("Privacy Policy", Theme.privacyURL)
+            linkButton("Политика конфиденциальности", Theme.privacyURL)
             Text("·")
                 .foregroundStyle(c.textFaint)
                 .font(.system(size: 14))
-            linkButton("Terms of Service", Theme.termsURL)
+            linkButton("Пользовательское соглашение", Theme.termsURL)
             Text("·")
                 .foregroundStyle(c.textFaint)
                 .font(.system(size: 14))
-            linkButton("Support", Theme.supportURL)
+            linkButton("Поддержка", Theme.supportURL)
         }
         .font(.system(size: 14))
         .foregroundStyle(c.textFaint)

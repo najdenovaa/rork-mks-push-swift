@@ -14,13 +14,17 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            switch appState.route {
-            case .welcome:
-                WelcomeView()
-            case .qr:
-                QRView()
-            case .connected:
-                ConnectedView()
+            if !appState.isLoaded {
+                loadingView
+            } else {
+                switch appState.route {
+                case .welcome:
+                    WelcomeView()
+                case .qr:
+                    QRView()
+                case .connected:
+                    ConnectedView()
+                }
             }
         }
         .environment(\.themeColors, ThemeColors(colorScheme: colorScheme))
@@ -32,6 +36,18 @@ struct ContentView: View {
                 DeepLinkManager.shared.handleDeepLink(url, appState: appState)
             }
         }
+    }
+
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.2)
+            Text("Загрузка…")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(ThemeColors(colorScheme: colorScheme).bg)
     }
 }
 

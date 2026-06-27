@@ -27,6 +27,8 @@ final class CallManager: NSObject {
     private let provider: CXProvider
     private let callController = CXCallController()
     private var voipRegistry: PKPushRegistry?
+    private var voipRetryTask: Task<Void, Never>?
+    private var storedVoipToken: String?
 
     /// Tracks the call UUID -> raw UUID string from payload (for server callbacks).
     private var activeCalls: [UUID: IncomingCall] = [:]
@@ -82,6 +84,34 @@ final class CallManager: NSObject {
             UIApplication.shared.open(url, options: [:], completionHandler: nil)
         }
     }
+
+    // MARK: - VoIP token sync
+
+    /// Triggers the retry loop for any stored VoIP token.
+    func syncVoipToken() {
+        guard let token = storedVoipToken else { return }
+        startVoipRetryLoop(token: token)
+    }
+
+    private func startVoipRetryLoop(token: String) {
+        voipRetryTask?.cancel()
+        voipRetryTask = Task {
+            while !Task.isCancelled {
+                guard let userId = UserStore.userId else {
+                    try? await Task.sleep(for: .seconds(15))
+                    continue
+                }
+                do {
+                    try await APIService.shared.sendVoipToken(userId: userId, token: token)
+                    print("[CallManager] VoIP token synced successfully")
+                    break
+                } catch {
+                    print("[CallManager] VoIP token sync failed, retrying in 15s: \(error.localizedDescription)")
+                }
+                try? await Task.sleep(for: .seconds(15))
+            }
+        }
+    }
 }
 
 // MARK: - PKPushRegistryDelegate
@@ -91,8 +121,10 @@ extension CallManager: PKPushRegistryDelegate {
         guard type == .voIP else { return }
         let token = pushCredentials.token.map { String(format: "%02x", $0) }.joined()
         print("[CallManager] VoIP token updated")
-        guard let userId = UserStore.userId else { return }
-        Task { await APIService.shared.sendVoipToken(userId: userId, token: token) }
+        Task { @MainActor in
+            self.storedVoipToken = token
+            self.syncVoipToken()
+        }
     }
 
     nonisolated func pushRegistry(_ registry: PKPushRegistry, didInvalidatePushTokenFor type: PKPushType) {

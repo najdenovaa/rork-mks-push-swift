@@ -81,11 +81,15 @@ final class PushManager: NSObject, ObservableObject {
 
     // MARK: - Retry loop
 
-    private func startRetryLoop(token: String) {
+    func startRetryLoop(token: String) {
         retryTask?.cancel()
         retryTask = Task {
             while !Task.isCancelled {
-                guard let userId = UserStore.userId else { break }
+                guard let userId = UserStore.userId else {
+                    // No userId yet — sleep and retry
+                    try? await Task.sleep(for: .seconds(15))
+                    continue
+                }
                 do {
                     try await api.sendAPNsToken(userId: userId, token: token)
                     print("[PushManager] APNs token synced successfully")

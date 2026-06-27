@@ -190,8 +190,14 @@ struct QRView: View {
                 .font(.title2.bold())
                 .foregroundStyle(c.text)
 
+            Text("Введите пароль для подтверждения входа в приложение.")
+                .font(.subheadline)
+                .foregroundStyle(c.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 16)
+
             if let hint = appState.pairingHint, !hint.isEmpty {
-                Text(hint)
+                Text("Подсказка: \(hint)")
                     .font(.subheadline)
                     .foregroundStyle(c.textSecondary)
                     .multilineTextAlignment(.center)

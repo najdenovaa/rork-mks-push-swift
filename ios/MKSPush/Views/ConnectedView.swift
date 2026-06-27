@@ -32,17 +32,20 @@ struct ConnectedView: View {
 
                     statusText
 
-                    SiblingAppsLinks()
-                        .padding(.top, 12)
-
                     if push.authorizationStatus != .authorized {
                         notificationBanner
                     }
 
                     openAppButton
 
+                    disconnectButton
+                        .padding(.top, 4)
+
                     legalLinks
                         .padding(.top, 16)
+
+                    SiblingAppsLinks()
+                        .padding(.top, 20)
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 8)
@@ -81,10 +84,16 @@ struct ConnectedView: View {
     // MARK: - Status text
 
     private var statusText: some View {
-        Text("Доставка уведомлений с веб-приложений включена")
-            .font(.system(size: 18, weight: .semibold))
-            .foregroundStyle(c.text)
-            .multilineTextAlignment(.center)
+        VStack(spacing: 6) {
+            Text("Подключено")
+                .font(.title3.bold())
+                .foregroundStyle(Theme.green)
+
+            Text("Доставка уведомлений с веб-приложений включена")
+                .font(.system(size: 15))
+                .foregroundStyle(c.textSecondary)
+                .multilineTextAlignment(.center)
+        }
     }
 
     // MARK: - Notification banner
@@ -129,19 +138,28 @@ struct ConnectedView: View {
         .buttonStyle(PrimaryButtonStyle(color: Theme.green))
     }
 
+    // MARK: - Disconnect button
+
+    private var disconnectButton: some View {
+        Button("Отключить") {
+            showDisconnectAlert = true
+        }
+        .buttonStyle(DestructiveButtonStyle())
+    }
+
     // MARK: - Legal links
 
     private var legalLinks: some View {
         HStack(spacing: 8) {
-            linkButton("Privacy Policy", Theme.privacyURL)
+            linkButton("Политика конфиденциальности", Theme.privacyURL)
             Text("·")
                 .foregroundStyle(c.textFaint)
                 .font(.system(size: 14))
-            linkButton("Terms of Service", Theme.termsURL)
+            linkButton("Пользовательское соглашение", Theme.termsURL)
             Text("·")
                 .foregroundStyle(c.textFaint)
                 .font(.system(size: 14))
-            linkButton("Support", Theme.supportURL)
+            linkButton("Поддержка", Theme.supportURL)
         }
     }
 
@@ -169,6 +187,22 @@ struct ConnectedView: View {
     private func openSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
+    }
+}
+
+// MARK: - Destructive button style
+
+private struct DestructiveButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundStyle(Theme.red)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 15)
+            .background(Theme.red.opacity(0.1))
+            .clipShape(.rect(cornerRadius: 14))
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }
 

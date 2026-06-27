@@ -42,11 +42,9 @@ final class DeepLinkManager: ObservableObject {
 
     /// Called when user taps a push notification. Opens the appropriate app.
     func openAppFromPush(userInfo: [AnyHashable: Any]) {
-        guard let data = userInfo["data"] as? [String: Any] else {
-            openFallbackApp()
-            return
-        }
-        let urlString = data["url"] as? String
+        // Parse URL from either direct "url" key (APNs) or nested "data.url" (Expo)
+        let urlString = (userInfo["url"] as? String)
+            ?? (userInfo["data"] as? [String: Any])?["url"] as? String
 
         // VK links → open VK native
         if let url = urlString, isVKURL(url) {
