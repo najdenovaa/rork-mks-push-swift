@@ -67,7 +67,14 @@ nonisolated struct APIService: Sendable {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: ["password": password])
-        let (data, _) = try await session.data(for: request)
+        let (data, response) = try await session.data(for: request)
+        if let http = response as? HTTPURLResponse, http.statusCode == 409 {
+            let body = try? Self.decoder.decode(TwoFAResponse.self, from: data)
+            return TwoFAResponse(ok: false, error: body?.error ?? "Неверный пароль. Попробуйте снова.")
+        }
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            throw URLError(.badServerResponse)
+        }
         return try Self.decoder.decode(TwoFAResponse.self, from: data)
     }
 
@@ -86,8 +93,17 @@ nonisolated struct APIService: Sendable {
         }
     }
 
-    func sendVoipToken(userId: String, token: String) async {
-        await firePost(path: "api/voip-token/\(userId)", body: ["voip_token": token])
+    func sendVoipToken(userId: String, token: String) async throws {
+        let url = baseURL.appendingPathComponent("api/voip-token/\(userId)")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["voip_token": token])
+        let (data, response) = try await session.data(for: request)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw URLError(.badServerResponse, userInfo: ["body": body, "status": http.statusCode])
+        }
     }
 
     // MARK: - Call

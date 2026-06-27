@@ -112,6 +112,7 @@ final class DeepLinkManager: ObservableObject {
         let lower = url.lowercased()
         return lower.hasPrefix("https://vk.com") || lower.hasPrefix("https://vk.me")
             || lower.hasPrefix("vk.com") || lower.hasPrefix("vk://")
+            || lower.contains("mkspush.ru/go?s=vk") || lower.contains("mkspush.ru/go/vk")
     }
 
     private func openVKNative() {

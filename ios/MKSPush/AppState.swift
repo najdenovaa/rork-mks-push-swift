@@ -137,7 +137,7 @@ final class AppState: ObservableObject {
             pairingHint = nil
             route = .qr
             // Trigger token sync loops now that userId is available
-            PushManager.shared.syncOnForeground()
+            PushManager.shared.kickRetryIfNeeded()
             CallManager.shared.syncVoipToken()
         } catch {
             connectError = "Сервер временно недоступен. Проверьте подключение к интернету и попробуйте снова."

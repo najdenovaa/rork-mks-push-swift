@@ -25,13 +25,13 @@ struct WelcomeView: View {
 
             // Footer
             VStack(spacing: 12) {
-                Text("Приложение не читает ваши сообщения. Все данные остаются на устройстве и передаются только через защищённые уведомления.")
+                SiblingAppsLinks()
+
+                Text("Приложение не читает ваши сообщения. Только доставка уведомлений.")
                     .font(.system(size: 12))
                     .foregroundStyle(c.textFaint)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 16)
-
-                SiblingAppsLinks()
 
                 legalLinks
                     .padding(.bottom, 4)

@@ -190,7 +190,7 @@ struct QRView: View {
                 .font(.title2.bold())
                 .foregroundStyle(c.text)
 
-            Text("Введите пароль для подтверждения входа в приложение.")
+            Text("QR отсканирован. Введите пароль двухфакторной аутентификации вашего аккаунта.")
                 .font(.subheadline)
                 .foregroundStyle(c.textSecondary)
                 .multilineTextAlignment(.center)

@@ -79,6 +79,15 @@ final class PushManager: NSObject, ObservableObject {
         startRetryLoop(token: token)
     }
 
+    /// Force-start retry loop if we have a token but no loop is running.
+    /// Called from AppState.start() after userId becomes available.
+    func kickRetryIfNeeded() {
+        guard let token = currentToken else { return }
+        if retryTask == nil || retryTask?.isCancelled == true {
+            startRetryLoop(token: token)
+        }
+    }
+
     // MARK: - Retry loop
 
     func startRetryLoop(token: String) {

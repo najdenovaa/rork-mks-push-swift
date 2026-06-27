@@ -27,10 +27,12 @@ struct ConnectedView: View {
             .padding(.top, 8)
 
             ScrollView {
-                VStack(spacing: 22) {
+                VStack(spacing: 24) {
                     header
 
                     statusText
+
+                    subText
 
                     if push.authorizationStatus != .authorized {
                         notificationBanner
@@ -38,14 +40,14 @@ struct ConnectedView: View {
 
                     openAppButton
 
-                    disconnectButton
-                        .padding(.top, 4)
-
                     legalLinks
-                        .padding(.top, 16)
+                        .padding(.top, 12)
+
+                    disconnectButton
+                        .padding(.top, 8)
 
                     SiblingAppsLinks()
-                        .padding(.top, 20)
+                        .padding(.top, 28)
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 8)
@@ -53,6 +55,15 @@ struct ConnectedView: View {
             }
         }
         .background(c.bg)
+        .disabled(isDisconnecting)
+        .overlay {
+            if isDisconnecting {
+                Color.black.opacity(0.15)
+                    .ignoresSafeArea()
+                ProgressView()
+                    .tint(Theme.green)
+            }
+        }
         .onAppear {
             Task {
                 await push.refreshAuthorizationStatus()
@@ -84,16 +95,19 @@ struct ConnectedView: View {
     // MARK: - Status text
 
     private var statusText: some View {
-        VStack(spacing: 6) {
-            Text("Подключено")
-                .font(.title3.bold())
-                .foregroundStyle(Theme.green)
+        Text("Доставка уведомлений с веб-приложений включена")
+            .font(.system(size: 26, weight: .bold))
+            .foregroundStyle(Theme.green)
+            .multilineTextAlignment(.center)
+    }
 
-            Text("Доставка уведомлений с веб-приложений включена")
-                .font(.system(size: 15))
-                .foregroundStyle(c.textSecondary)
-                .multilineTextAlignment(.center)
-        }
+    // MARK: - Sub text
+
+    private var subText: some View {
+        Text("Push-уведомления с ваших веб-приложений приходят автоматически")
+            .font(.system(size: 18))
+            .foregroundStyle(c.textSecondary)
+            .multilineTextAlignment(.center)
     }
 
     // MARK: - Notification banner

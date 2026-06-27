@@ -49,6 +49,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     /// Show notifications in foreground.
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        // Apply badge from payload if present
+        let userInfo = notification.request.content.userInfo
+        if let aps = userInfo["aps"] as? [String: Any], let badge = aps["badge"] as? Int {
+            BadgeSync.shared.applyBadge(badge)
+        }
         completionHandler([.banner, .sound, .badge])
     }
 
