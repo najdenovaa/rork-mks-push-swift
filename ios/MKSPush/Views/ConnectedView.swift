@@ -211,6 +211,10 @@ struct ConnectedView: View {
             Text("VoIP: \(callManager.voipDebugStatus)")
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(c.textFaint.opacity(0.6))
+            Text("Plist: \(callManager.backgroundModesDebugLine)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
             if callManager.voipDebugStatus == "waiting" || callManager.voipDebugStatus.hasPrefix("waiting") {
                 Text("PushKit silent — token not received from Apple")
                     .font(.system(size: 10))

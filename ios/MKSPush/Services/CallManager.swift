@@ -36,6 +36,9 @@ final class CallManager: NSObject, ObservableObject {
     /// Debug status for ConnectedView footer: "waiting" / "len=64" / "sent" / "error"
     @Published var voipDebugStatus: String = "waiting"
 
+    /// UIBackgroundModes from final Info.plist — "voip, remote-notification" or "NOT FOUND"
+    @Published var backgroundModesDebugLine: String = "NOT FOUND"
+
     /// Tracks the call UUID -> raw UUID string from payload (for server callbacks).
     private var activeCalls: [UUID: IncomingCall] = [:]
 
@@ -65,6 +68,14 @@ final class CallManager: NSObject, ObservableObject {
         } else {
             print("[CallManager] no persisted VoIP token on init")
         }
+
+        // Read UIBackgroundModes from final Info.plist
+        if let modes = Bundle.main.infoDictionary?["UIBackgroundModes"] as? [String] {
+            backgroundModesDebugLine = modes.joined(separator: ", ")
+        } else {
+            backgroundModesDebugLine = "NOT FOUND"
+        }
+        print("[CallManager] backgroundModesDebugLine: \(backgroundModesDebugLine)")
     }
 
     // MARK: - Registration
