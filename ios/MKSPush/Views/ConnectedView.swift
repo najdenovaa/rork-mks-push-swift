@@ -59,13 +59,13 @@ struct ConnectedView: View {
         .onDisappear {
             appState.stopStatusPolling()
         }
-        .alert("Disconnect?", isPresented: $showDisconnectAlert) {
-            Button("Disconnect", role: .destructive) {
+        .alert("Отключиться?", isPresented: $showDisconnectAlert) {
+            Button("Отключить", role: .destructive) {
                 Task { await disconnect() }
             }
-            Button("Cancel", role: .cancel) {}
+            Button("Отмена", role: .cancel) {}
         } message: {
-            Text("You will stop receiving notifications from connected apps.")
+            Text("Вы перестанете получать уведомления от подключённых приложений.")
         }
     }
 
@@ -81,7 +81,7 @@ struct ConnectedView: View {
     // MARK: - Status text
 
     private var statusText: some View {
-        Text("Push notification delivery from web apps is enabled")
+        Text("Доставка уведомлений с веб-приложений включена")
             .font(.system(size: 18, weight: .semibold))
             .foregroundStyle(c.text)
             .multilineTextAlignment(.center)
@@ -97,8 +97,8 @@ struct ConnectedView: View {
                     .foregroundStyle(Theme.primary)
                 Text(
                     push.authorizationStatus == .denied
-                    ? "Notifications are disabled. You can enable them in device Settings."
-                    : "Enable notifications so you don't miss messages"
+                    ? "Уведомления отключены. Включить можно в Настройках устройства."
+                    : "Включите уведомления, чтобы не пропускать сообщения"
                 )
                 .font(.subheadline)
                 .foregroundStyle(c.text)
@@ -106,10 +106,10 @@ struct ConnectedView: View {
             }
 
             if push.authorizationStatus == .denied {
-                Button("Open Settings") { openSettings() }
+                Button("Открыть настройки") { openSettings() }
                     .buttonStyle(SecondaryButtonStyle(color: Theme.primary))
             } else {
-                Button("Enable") {
+                Button("Включить") {
                     Task { await push.requestAuthorization() }
                 }
                 .buttonStyle(SecondaryButtonStyle(color: Theme.primary))
@@ -123,7 +123,7 @@ struct ConnectedView: View {
     // MARK: - Open app button
 
     private var openAppButton: some View {
-        Button("Open App") {
+        Button("Открыть приложение") {
             DeepLinkManager.shared.openLinkedApp()
         }
         .buttonStyle(PrimaryButtonStyle(color: Theme.green))

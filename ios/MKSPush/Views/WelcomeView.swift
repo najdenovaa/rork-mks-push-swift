@@ -25,7 +25,7 @@ struct WelcomeView: View {
 
             // Footer
             VStack(spacing: 12) {
-                Text("The app does not read your messages. All data stays on your device and is only transmitted through secure notifications.")
+                Text("Приложение не читает ваши сообщения. Все данные остаются на устройстве и передаются только через защищённые уведомления.")
                     .font(.system(size: 12))
                     .foregroundStyle(c.textFaint)
                     .multilineTextAlignment(.center)
@@ -81,11 +81,11 @@ struct WelcomeView: View {
                     .font(.system(size: 40, weight: .bold, design: .rounded))
                     .foregroundStyle(c.text)
 
-                Text("Smart Notifications")
+                Text("Умные уведомления")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(Theme.green)
 
-                Text("Your data is safe. We do not read your messages.")
+                Text("Ваши данные в безопасности. Мы не читаем ваши сообщения.")
                     .font(.system(size: 15))
                     .foregroundStyle(c.textSecondary)
                     .multilineTextAlignment(.center)
@@ -109,7 +109,7 @@ struct WelcomeView: View {
                     HStack(spacing: 10) {
                         ProgressView()
                             .tint(.white)
-                        Text("Connecting…")
+                        Text("Подключаем…")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(.white)
                     }
@@ -118,12 +118,12 @@ struct WelcomeView: View {
                     .background(Theme.green)
                     .clipShape(.rect(cornerRadius: 16))
                 } else if appState.connectError != nil {
-                    Button("Retry") {
+                    Button("Повторить") {
                         Task { await appState.start() }
                     }
                     .buttonStyle(PrimaryButtonStyle(color: Theme.green))
                 } else {
-                    Button("Start") {
+                    Button("Начать") {
                         Task { await appState.start() }
                     }
                     .buttonStyle(PrimaryButtonStyle(color: Theme.green))

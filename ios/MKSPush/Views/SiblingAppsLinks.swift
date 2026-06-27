@@ -14,18 +14,18 @@ struct SiblingAppsLinks: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Text("My Projects")
+            Text("Мои проекты")
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(c.textSecondary)
 
             HStack(spacing: 32) {
                 appItem(
-                    name: "Musorka",
+                    name: "Мусорка",
                     url: "https://apps.apple.com/us/app/мусорка/id6762083275",
                     letter: "M"
                 )
                 appItem(
-                    name: "Skidos",
+                    name: "Скидос",
                     url: "https://apps.apple.com/us/app/скидос/id6775503298",
                     letter: "C"
                 )
