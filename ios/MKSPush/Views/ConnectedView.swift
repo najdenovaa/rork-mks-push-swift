@@ -45,14 +45,14 @@ struct ConnectedView: View {
                     legalLinks
                         .padding(.top, 12)
 
+                    voipDebugFooter
+                        .padding(.top, 20)
+
                     disconnectButton
                         .padding(.top, 8)
 
                     SiblingAppsLinks()
                         .padding(.top, 28)
-
-                    voipDebugFooter
-                        .padding(.top, 20)
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 8)

@@ -71,11 +71,15 @@ final class CallManager: NSObject, ObservableObject {
 
     /// Registers for VoIP pushes. Call once at launch, and again on foreground if token still nil.
     func registerForVoIPPushes() {
-        print("[CallManager] registerForVoIPPushes called")
+        guard voipRegistry == nil else {
+            print("[CallManager] registerForVoIPPushes skipped: registry exists")
+            return
+        }
         let registry = PKPushRegistry(queue: .main)
         registry.delegate = self
         registry.desiredPushTypes = [.voIP]
         voipRegistry = registry
+        print("[CallManager] PKPushRegistry created, desiredPushTypes=[.voIP]")
     }
 
     /// Re-register for VoIP pushes if we still have no token.
@@ -83,6 +87,15 @@ final class CallManager: NSObject, ObservableObject {
     func reRegisterIfNeeded() {
         guard storedVoipToken == nil else {
             print("[CallManager] reRegisterIfNeeded skipped: already have token len=\(storedVoipToken!.count)")
+            return
+        }
+        if voipRegistry != nil {
+            print("[CallManager] reRegisterIfNeeded: registry exists, waiting for token")
+            // Try to sync persisted token if available
+            if let saved = UserDefaults.standard.string(forKey: "mkspush.voip_token"), !saved.isEmpty {
+                storedVoipToken = saved
+                syncVoipToken()
+            }
             return
         }
         print("[CallManager] reRegisterIfNeeded: no stored token, re-registering")
