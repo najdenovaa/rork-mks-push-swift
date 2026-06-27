@@ -38,11 +38,11 @@ struct ConnectedView: View {
 
                     openAppButton
 
-                    legalLinks
-                        .padding(.top, 8)
-
                     SiblingAppsLinks()
                         .padding(.top, 12)
+
+                    legalLinks
+                        .padding(.top, 16)
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 8)

@@ -22,41 +22,33 @@ struct SiblingAppsLinks: View {
                 appItem(
                     name: "Мусорка",
                     url: "https://apps.apple.com/us/app/мусорка/id6762083275",
-                    iconName: "trash_bin_green"
+                    letter: "M"
                 )
                 appItem(
                     name: "Скидос",
                     url: "https://apps.apple.com/us/app/скидос/id6775503298",
-                    iconName: "discount_tag_blue"
+                    letter: "C"
                 )
             }
             .padding(.vertical, 8)
         }
     }
 
-    private func appItem(name: String, url: String, iconName: String) -> some View {
+    private func appItem(name: String, url: String, letter: String) -> some View {
         Button {
             if let u = URL(string: url) {
                 UIApplication.shared.open(u)
             }
         } label: {
             VStack(spacing: 8) {
-                if let img = UIImage(named: iconName) {
-                    Image(uiImage: img)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 64, height: 64)
-                        .clipShape(.rect(cornerRadius: 14))
-                } else {
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(c.border)
-                        .frame(width: 64, height: 64)
-                        .overlay {
-                            Text(String(name.prefix(1)))
-                                .font(.title2.bold())
-                                .foregroundStyle(c.textSecondary)
-                        }
-                }
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(.white)
+                    .frame(width: 64, height: 64)
+                    .overlay {
+                        Text(letter)
+                            .font(.title.bold())
+                            .foregroundStyle(Theme.green)
+                    }
                 Text(name)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(c.text)
