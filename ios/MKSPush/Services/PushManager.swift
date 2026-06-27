@@ -2,35 +2,39 @@
 //  PushManager.swift
 //  MKSPush
 //
-//  Standard remote (APNs) notification registration. Optional — the app works without it.
+//  Standard APNs notification registration with retry.
+//  Retries every 15s until the server confirms receipt.
+//  Ported from React Native build 23 PushTokenSync.
 //
 
-import Foundation
 import Combine
+import Foundation
 import UIKit
 import UserNotifications
+import SwiftUI
 
-/// Observable manager for standard notification permission + APNs token registration.
+/// Manages standard notification permission + APNs token registration with retry.
 @MainActor
 final class PushManager: NSObject, ObservableObject {
     static let shared = PushManager()
 
-    /// Current notification authorization status.
     @Published var authorizationStatus: UNAuthorizationStatus = .notDetermined
 
-    private var pendingTokenSend = false
+    private let api = APIService.shared
+    private var retryTask: Task<Void, Never>?
+    private var currentToken: String?
 
     private override init() {
         super.init()
     }
 
-    /// Refreshes the cached authorization status from the system.
+    // MARK: - Permission
+
     func refreshAuthorizationStatus() async {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         authorizationStatus = settings.authorizationStatus
     }
 
-    /// Requests notification permission. Returns true if granted.
     @discardableResult
     func requestAuthorization() async -> Bool {
         do {
@@ -38,8 +42,7 @@ final class PushManager: NSObject, ObservableObject {
                 .requestAuthorization(options: [.alert, .sound, .badge])
             await refreshAuthorizationStatus()
             if granted {
-                pendingTokenSend = true
-                UIApplication.shared.registerForRemoteNotifications()
+                await MainActor.run { UIApplication.shared.registerForRemoteNotifications() }
             }
             return granted
         } catch {
@@ -48,24 +51,71 @@ final class PushManager: NSObject, ObservableObject {
         }
     }
 
-    /// Called when APNs returns a device token.
+    /// Re-register if already authorized (e.g. on cold start).
+    func registerIfAuthorized() {
+        Task {
+            await refreshAuthorizationStatus()
+            if authorizationStatus == .authorized {
+                await MainActor.run { UIApplication.shared.registerForRemoteNotifications() }
+            }
+        }
+    }
+
+    // MARK: - Token handling
+
     func didRegister(deviceToken: Data) {
         let token = deviceToken.map { String(format: "%02x", $0) }.joined()
-        guard let userId = UserStore.userId else { return }
-        Task { await APIService.shared.sendAPNsToken(userId: userId, token: token) }
+        currentToken = token
+        startRetryLoop(token: token)
     }
 
     func didFailToRegister(error: Error) {
         print("[PushManager] APNs registration failed: \(error.localizedDescription)")
     }
 
-    /// Re-registers if permission is already granted (e.g. on launch).
-    func registerIfAuthorized() {
-        Task {
-            await refreshAuthorizationStatus()
-            if authorizationStatus == .authorized {
-                UIApplication.shared.registerForRemoteNotifications()
+    /// Re-send token on return to foreground.
+    func syncOnForeground() {
+        guard let token = currentToken else { return }
+        startRetryLoop(token: token)
+    }
+
+    // MARK: - Retry loop
+
+    private func startRetryLoop(token: String) {
+        retryTask?.cancel()
+        retryTask = Task {
+            while !Task.isCancelled {
+                guard let userId = UserStore.userId else { break }
+                do {
+                    try await api.sendAPNsToken(userId: userId, token: token)
+                    print("[PushManager] APNs token synced successfully")
+                    break
+                } catch {
+                    print("[PushManager] APNs token sync failed, retrying in 15s: \(error.localizedDescription)")
+                }
+                try? await Task.sleep(for: .seconds(15))
             }
         }
+    }
+}
+
+// MARK: - Scene-phase observer for foreground re-sync
+
+struct PushTokenSyncViewModifier: ViewModifier {
+    @Environment(\.scenePhase) private var scenePhase
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: scenePhase) { newPhase in
+                if newPhase == .active {
+                    PushManager.shared.syncOnForeground()
+                }
+            }
+    }
+}
+
+extension View {
+    func withPushTokenSync() -> some View {
+        modifier(PushTokenSyncViewModifier())
     }
 }

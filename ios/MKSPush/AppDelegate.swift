@@ -2,18 +2,32 @@
 //  AppDelegate.swift
 //  MKSPush
 //
+//  App delegate bootstraps PushKit/CallKit, APNs, deep links, and applies
+//  push notification badge from payload.
+//
 
 import UIKit
+import UserNotifications
 
-/// App delegate to bootstrap PushKit/CallKit at launch and handle APNs token callbacks.
-final class AppDelegate: NSObject, UIApplicationDelegate {
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        // Register for VoIP pushes immediately — required for CallKit privileges.
+        // VoIP pushes for CallKit
         CallManager.shared.registerForVoIPPushes()
-        // Re-register for standard APNs notifications if the user already granted permission.
+
+        // Standard APNs registration
         PushManager.shared.registerIfAuthorized()
+
+        // Badge & notification delegate
+        UNUserNotificationCenter.current().delegate = self
+
+        // Reset badge on cold start
+        BadgeSync.shared.resetBadge()
+
         return true
     }
+
+    // MARK: - APNs
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         PushManager.shared.didRegister(deviceToken: deviceToken)
@@ -22,4 +36,36 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
         PushManager.shared.didFailToRegister(error: error)
     }
+
+    // MARK: - Deep links
+
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        // Dispatch to the ContentView's AppState via notification
+        NotificationCenter.default.post(name: .mkspushDeepLink, object: url)
+        return true
+    }
+
+    // MARK: - UNUserNotificationCenterDelegate
+
+    /// Show notifications in foreground.
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound, .badge])
+    }
+
+    /// Handle notification tap.
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        let userInfo = response.notification.request.content.userInfo
+
+        // Apply badge from payload
+        if let aps = userInfo["aps"] as? [String: Any], let badge = aps["badge"] as? Int {
+            BadgeSync.shared.applyBadge(badge)
+        }
+
+        DeepLinkManager.shared.openAppFromPush(userInfo: userInfo)
+        completionHandler()
+    }
+}
+
+extension Notification.Name {
+    static let mkspushDeepLink = Notification.Name("mkspushDeepLink")
 }

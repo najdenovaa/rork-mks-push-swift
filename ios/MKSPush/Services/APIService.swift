@@ -2,14 +2,15 @@
 //  APIService.swift
 //  MKSPush
 //
+//  Networking layer matching React Native build 23 endpoints.
+//
 
 import Foundation
 
-/// Networking layer for the MKS Push backend. All methods are nonisolated and safe to call from any context.
 nonisolated struct APIService: Sendable {
     static let shared = APIService()
 
-    let baseURL = URL(string: "https://mkspush.ru")!
+    let baseURL = URL(string: Theme.serverURL)!
 
     private var session: URLSession {
         let config = URLSessionConfiguration.default
@@ -23,17 +24,27 @@ nonisolated struct APIService: Sendable {
         return d
     }()
 
-    /// URL for the QR PNG image. Appends a cache-busting timestamp.
+    // MARK: - QR
+
     func qrURL(userId: String) -> URL {
         var url = baseURL.appendingPathComponent("api/max-qr/\(userId)")
         if var comps = URLComponents(url: url, resolvingAgainstBaseURL: false) {
-            comps.queryItems = [URLQueryItem(name: "t", value: String(Int(Date().timeIntervalSince1970)))]
+            comps.queryItems = [URLQueryItem(name: "v", value: String(Int(Date().timeIntervalSince1970)))]
             if let u = comps.url { url = u }
         }
         return url
     }
 
-    /// POST /api/connect — registers a new device and returns its userId.
+    func qrImageData(userId: String) async throws -> Data {
+        let (data, response) = try await session.data(from: qrURL(userId: userId))
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            throw URLError(.badServerResponse)
+        }
+        return data
+    }
+
+    // MARK: - Connect / Status / 2FA
+
     func connect() async throws -> ConnectResponse {
         let url = baseURL.appendingPathComponent("api/connect")
         var request = URLRequest(url: url)
@@ -44,52 +55,71 @@ nonisolated struct APIService: Sendable {
         return try Self.decoder.decode(ConnectResponse.self, from: data)
     }
 
-    /// GET /api/status/{userId}
-    func status(userId: String) async throws -> ConnectionStatus {
+    func status(userId: String) async throws -> StatusResponse {
         let url = baseURL.appendingPathComponent("api/status/\(userId)")
         let (data, _) = try await session.data(from: url)
-        let response = try Self.decoder.decode(StatusResponse.self, from: data)
-        return ConnectionStatus(from: response.status)
+        return try Self.decoder.decode(StatusResponse.self, from: data)
     }
 
-    /// GET /api/events/{userId}
-    func events(userId: String) async throws -> [AppEvent] {
-        let url = baseURL.appendingPathComponent("api/events/\(userId)")
-        let (data, _) = try await session.data(from: url)
-        let response = try Self.decoder.decode(EventsResponse.self, from: data)
-        return response.events ?? []
+    func submit2FA(userId: String, password: String) async throws -> TwoFAResponse {
+        let url = baseURL.appendingPathComponent("api/2fa/\(userId)")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["password": password])
+        let (data, _) = try await session.data(for: request)
+        return try Self.decoder.decode(TwoFAResponse.self, from: data)
     }
 
-    /// Downloads the QR PNG image data.
-    func qrImageData(userId: String) async throws -> Data {
-        let (data, response) = try await session.data(from: qrURL(userId: userId))
+    // MARK: - Tokens
+
+    func sendAPNsToken(userId: String, token: String) async throws {
+        let url = baseURL.appendingPathComponent("api/token/\(userId)")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["token": token, "type": "apns"])
+        let (data, response) = try await session.data(for: request)
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            throw URLError(.badServerResponse)
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw URLError(.badServerResponse, userInfo: ["body": body, "status": http.statusCode])
         }
-        return data
     }
 
-    /// POST /api/token/{userId} — sends the standard APNs device token.
-    func sendAPNsToken(userId: String, token: String) async {
-        await post(path: "api/token/\(userId)", body: ["token": token, "type": "apns"])
-    }
-
-    /// POST /api/voip-token/{userId} — sends the PushKit VoIP token.
     func sendVoipToken(userId: String, token: String) async {
-        await post(path: "api/voip-token/\(userId)", body: ["voip_token": token])
+        await firePost(path: "api/voip-token/\(userId)", body: ["voip_token": token])
     }
 
-    /// POST /api/call-declined/{userId}
+    // MARK: - Call
+
     func callDeclined(userId: String, callUUID: String) async {
-        await post(path: "api/call-declined/\(userId)", body: ["call_uuid": callUUID])
+        await firePost(path: "api/call-declined/\(userId)", body: ["call_uuid": callUUID])
     }
 
-    /// POST /api/disconnect/{userId}
+    // MARK: - Disconnect
+
     func disconnect(userId: String) async {
-        await post(path: "api/disconnect/\(userId)", body: [:])
+        await firePost(path: "api/disconnect/\(userId)", body: [:])
     }
 
-    private func post(path: String, body: [String: String]) async {
+    // MARK: - Badge
+
+    func resetBadge(userId: String) async {
+        await firePost(path: "api/badge/\(userId)/reset", body: [:])
+    }
+
+    // MARK: - Open target
+
+    func openTarget(userId: String) async throws -> String? {
+        let url = baseURL.appendingPathComponent("api/open-target/\(userId)")
+        let (data, _) = try await session.data(from: url)
+        let resp = try Self.decoder.decode(OpenTargetResponse.self, from: data)
+        return resp.url
+    }
+
+    // MARK: - Helpers
+
+    private func firePost(path: String, body: [String: String]) async {
         let url = baseURL.appendingPathComponent(path)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

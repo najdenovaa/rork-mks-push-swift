@@ -5,9 +5,8 @@
 
 import Foundation
 
-/// Lightweight persistence for the device's userId. Safe to read from any context.
 nonisolated enum UserStore {
-    private static let key = "mks_user_id"
+    private static let key = "user_id"
 
     static var userId: String? {
         get { UserDefaults.standard.string(forKey: key) }

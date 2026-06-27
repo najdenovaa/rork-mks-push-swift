@@ -2,70 +2,166 @@
 //  AppState.swift
 //  MKSPush
 //
+//  State machine matching React Native providers/app.tsx build 23.
+//
 
 import Foundation
+import SwiftUI
 import Combine
 
-/// The three top-level screens of the app.
-nonisolated enum AppRoute: Equatable {
+/// Top-level screen routes.
+enum AppRoute: Equatable {
     case welcome
     case qr
     case connected
 }
 
-/// Drives navigation between Welcome / QR / Connected based on server status.
+/// Observable state machine managing user identity, pairing flow, and routing.
 @MainActor
 final class AppState: ObservableObject {
-    @Published private(set) var route: AppRoute = .welcome
-    @Published private(set) var userId: String?
-    @Published private(set) var isConnecting = false
+    // MARK: - Published state
+
+    @Published var route: AppRoute = .welcome
+    @Published var userId: String?
+    @Published var status: ConnectionStatus = .unknown
+    @Published var pairing: PairingMode = .unknown
+    @Published var pairingHint: String?
+    @Published var isConnecting = false
     @Published var connectError: String?
+    @Published var isLoaded = false
+
+    // MARK: - Dependencies
 
     private let api = APIService.shared
     private var statusPollTask: Task<Void, Never>?
+    private var initialCheckDone = false
+
+    // MARK: - Init
 
     init() {
         if let id = UserStore.userId, !id.isEmpty {
             userId = id
-            // We have a saved user — verify status to decide which screen to show.
             route = .qr
-            Task { await self.resolveInitialRoute() }
+            Task { await resolveInitialRoute() }
+        } else {
+            isLoaded = true
         }
     }
 
-    /// On launch with a saved user, check status once and route accordingly.
+    /// Determine initial route from saved userId.
     private func resolveInitialRoute() async {
+        guard let id = userId else {
+            isLoaded = true
+            return
+        }
+        do {
+            let resp = try await api.status(userId: id)
+            applyStatus(resp)
+        } catch {
+            status = .unknown
+            pairing = .unknown
+        }
+        reroute()
+        initialCheckDone = true
+        isLoaded = true
+    }
+
+    // MARK: - Check status
+
+    func checkStatus() async {
         guard let id = userId else { return }
-        if let status = try? await api.status(userId: id), status == .active {
+        do {
+            let resp = try await api.status(userId: id)
+            applyStatus(resp)
+        } catch {
+            // Keep current state on network error
+        }
+        reroute()
+    }
+
+    /// Poll status periodically at the given interval until cancelled.
+    func startStatusPolling(interval: TimeInterval) {
+        guard let id = userId else { return }
+        statusPollTask?.cancel()
+        statusPollTask = Task {
+            while !Task.isCancelled {
+                if let resp = try? await api.status(userId: id) {
+                    applyStatus(resp)
+                    reroute()
+                    if route == .connected { break }
+                }
+                try? await Task.sleep(for: .seconds(interval))
+            }
+        }
+    }
+
+    func stopStatusPolling() {
+        statusPollTask?.cancel()
+        statusPollTask = nil
+    }
+
+    // MARK: - Parse status response
+
+    private func applyStatus(_ resp: StatusResponse) {
+        status = ConnectionStatus(rawValue: resp.status ?? "unknown") ?? .unknown
+        if let p = resp.pairing {
+            pairing = PairingMode(rawValue: p) ?? .unknown
+        }
+        pairingHint = resp.hint
+    }
+
+    /// Compute the screen from current state.
+    private func reroute() {
+        if userId == nil {
+            route = .welcome
+        } else if status == .active {
             route = .connected
         } else {
             route = .qr
         }
     }
 
-    /// "Начать" tapped — register the device and move to the QR screen.
+    // MARK: - Connect
+
     func start() async {
         guard !isConnecting else { return }
         isConnecting = true
         connectError = nil
         defer { isConnecting = false }
         do {
-            let response = try await api.connect()
-            UserStore.userId = response.userId
-            userId = response.userId
+            let resp = try await api.connect()
+            UserStore.userId = resp.userId
+            userId = resp.userId
+            status = .pending
+            pairing = .qr
+            pairingHint = nil
             route = .qr
         } catch {
-            connectError = "Не удалось подключиться. Попробуйте ещё раз."
-            print("[AppState] connect failed: \(error.localizedDescription)")
+            connectError = "Сервер временно недоступен. Проверьте подключение к интернету и попробуйте снова."
         }
     }
 
-    /// Called by the QR screen when the server reports an active connection.
-    func markConnected() {
-        route = .connected
+    // MARK: - 2FA
+
+    func submit2FA(password: String) async -> String? {
+        guard let id = userId else { return nil }
+        do {
+            let resp = try await api.submit2FA(userId: id, password: password)
+            if resp.ok == true {
+                pairingHint = nil
+                // After successful 2FA, status may flip — poll once
+                await checkStatus()
+                return nil
+            } else {
+                return resp.error ?? "Неверный пароль. Попробуйте снова."
+            }
+        } catch {
+            return "Неверный пароль. Попробуйте снова."
+        }
     }
 
-    /// Disconnect: notify server, clear storage, return to Welcome.
+    // MARK: - Disconnect
+
     func disconnect() async {
         statusPollTask?.cancel()
         if let id = userId {
@@ -73,6 +169,20 @@ final class AppState: ObservableObject {
         }
         UserStore.clear()
         userId = nil
+        status = .unknown
+        pairing = .unknown
+        pairingHint = nil
         route = .welcome
+    }
+
+    /// Called by deep link: mkspush://pair?user_id=XXX
+    func setUserIdFromDeepLink(_ id: String) {
+        UserStore.userId = id
+        userId = id
+        status = .unknown
+        pairing = .unknown
+        pairingHint = nil
+        route = .qr
+        Task { await checkStatus() }
     }
 }

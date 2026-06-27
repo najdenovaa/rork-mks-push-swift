@@ -5,92 +5,57 @@
 
 import Foundation
 
-/// Connection status reported by the server.
-nonisolated enum ConnectionStatus: String, Codable, Sendable {
+// MARK: - Connection status
+
+nonisolated enum ConnectionStatus: String, Codable, Sendable, Equatable {
+    case unknown
     case pending
     case active
-    case unknown
-
-    init(from rawValue: String?) {
-        switch rawValue?.lowercased() {
-        case "active", "connected": self = .active
-        case "pending", "waiting": self = .pending
-        default: self = .unknown
-        }
-    }
 }
 
-/// Response from POST /api/connect
+// MARK: - Pairing mode
+
+nonisolated enum PairingMode: String, Codable, Sendable, Equatable {
+    case qr
+    case needs2FA = "needs_2fa"
+    case active
+    case unknown
+}
+
+// MARK: - API responses
+
+/// POST /api/connect
 nonisolated struct ConnectResponse: Codable, Sendable {
     let ok: Bool
     let userId: String
-    let status: String?
 
     enum CodingKeys: String, CodingKey {
         case ok
         case userId = "user_id"
-        case status
     }
 }
 
-/// Response from GET /api/status/{userId}
+/// GET /api/status/{userId}
 nonisolated struct StatusResponse: Codable, Sendable {
     let ok: Bool?
     let status: String?
+    let pairing: String?
+    let hint: String?
 }
 
-/// Response from GET /api/events/{userId}
-nonisolated struct EventsResponse: Codable, Sendable {
+/// POST /api/2fa/{userId}
+nonisolated struct TwoFAResponse: Codable, Sendable {
     let ok: Bool?
-    let events: [AppEvent]?
+    let error: String?
 }
 
-/// A single event in the feed.
-nonisolated struct AppEvent: Codable, Sendable, Identifiable {
-    let title: String
-    let body: String
-    let time: String
-
-    var id: String { "\(title)|\(body)|\(time)" }
-
-    /// Formats the UTC timestamp into a local HH:mm string. Falls back to the raw value.
-    var displayTime: String {
-        AppEvent.timeFormatter.formatted(from: time)
-    }
-
-    private static let timeFormatter = EventTimeFormatter()
+/// GET /api/open-target/{userId}
+nonisolated struct OpenTargetResponse: Codable, Sendable {
+    let ok: Bool?
+    let url: String?
 }
 
-/// Parses common UTC timestamp formats and renders a local HH:mm string.
-nonisolated struct EventTimeFormatter: Sendable {
-    func formatted(from raw: String) -> String {
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = iso.date(from: raw) {
-            return Self.output.string(from: date)
-        }
-        iso.formatOptions = [.withInternetDateTime]
-        if let date = iso.date(from: raw) {
-            return Self.output.string(from: date)
-        }
-
-        let fallback = DateFormatter()
-        fallback.locale = Locale(identifier: "en_US_POSIX")
-        fallback.timeZone = TimeZone(identifier: "UTC")
-        for format in ["yyyy-MM-dd'T'HH:mm:ss.SSSZ", "yyyy-MM-dd'T'HH:mm:ssZ", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss"] {
-            fallback.dateFormat = format
-            if let date = fallback.date(from: raw) {
-                return Self.output.string(from: date)
-            }
-        }
-        return raw
-    }
-
-    private static let output: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = .current
-        return f
-    }()
+/// POST /api/badge/{userId}/reset
+nonisolated struct BadgeResetResponse: Codable, Sendable {
+    let ok: Bool?
 }
