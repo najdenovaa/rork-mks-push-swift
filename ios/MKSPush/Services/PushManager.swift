@@ -123,6 +123,8 @@ struct PushTokenSyncViewModifier: ViewModifier {
                 if newPhase == .active {
                     PushManager.shared.syncOnForeground()
                     CallManager.shared.syncVoipToken()
+                    // Re-register for VoIP if PushKit hasn't delivered a token yet
+                    CallManager.shared.reRegisterIfNeeded()
                 }
             }
     }

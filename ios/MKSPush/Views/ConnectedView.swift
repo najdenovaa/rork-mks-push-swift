@@ -13,6 +13,8 @@ struct ConnectedView: View {
     @Environment(\.themeColors) private var c
     @ObservedObject private var push = PushManager.shared
 
+    @ObservedObject private var callManager = CallManager.shared
+
     @State private var isDisconnecting = false
     @State private var showDisconnectAlert = false
 
@@ -48,6 +50,9 @@ struct ConnectedView: View {
 
                     SiblingAppsLinks()
                         .padding(.top, 28)
+
+                    voipDebugFooter
+                        .padding(.top, 20)
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 8)
@@ -196,6 +201,23 @@ struct ConnectedView: View {
         appState.stopStatusPolling()
         await appState.disconnect()
         isDisconnecting = false
+    }
+
+    // MARK: - VoIP debug footer (temporary, small gray text)
+
+    @ViewBuilder
+    private var voipDebugFooter: some View {
+        VStack(spacing: 4) {
+            Text("VoIP: \(callManager.voipDebugStatus)")
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(c.textFaint.opacity(0.6))
+            if callManager.voipDebugStatus == "waiting" || callManager.voipDebugStatus.hasPrefix("waiting") {
+                Text("PushKit silent — token not received from Apple")
+                    .font(.system(size: 10))
+                    .foregroundStyle(c.textFaint.opacity(0.4))
+            }
+        }
+        .multilineTextAlignment(.center)
     }
 
     private func openSettings() {

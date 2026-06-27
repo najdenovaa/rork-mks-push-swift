@@ -12,11 +12,16 @@ import UserNotifications
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        // VoIP pushes for CallKit
+        // VoIP pushes for CallKit — register and schedule 30s check
         CallManager.shared.registerForVoIPPushes()
+        CallManager.shared.reRegisterIfNeeded()
+        CallManager.shared.scheduleDelayedVoipCheck()
 
         // Standard APNs registration
         PushManager.shared.registerIfAuthorized()
+
+        // Also sync VoIP token if persisted from previous launch
+        CallManager.shared.syncVoipToken()
 
         // Badge & notification delegate
         UNUserNotificationCenter.current().delegate = self
