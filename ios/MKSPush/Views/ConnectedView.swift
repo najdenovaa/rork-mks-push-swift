@@ -32,14 +32,14 @@ struct ConnectedView: View {
 
                     statusText
 
+                    SiblingAppsLinks()
+                        .padding(.top, 12)
+
                     if push.authorizationStatus != .authorized {
                         notificationBanner
                     }
 
                     openAppButton
-
-                    SiblingAppsLinks()
-                        .padding(.top, 12)
 
                     legalLinks
                         .padding(.top, 16)
@@ -59,13 +59,13 @@ struct ConnectedView: View {
         .onDisappear {
             appState.stopStatusPolling()
         }
-        .alert("Отключить?", isPresented: $showDisconnectAlert) {
-            Button("Отключить", role: .destructive) {
+        .alert("Disconnect?", isPresented: $showDisconnectAlert) {
+            Button("Disconnect", role: .destructive) {
                 Task { await disconnect() }
             }
-            Button("Отмена", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Вы перестанете получать уведомления от подключённых приложений.")
+            Text("You will stop receiving notifications from connected apps.")
         }
     }
 
@@ -81,7 +81,7 @@ struct ConnectedView: View {
     // MARK: - Status text
 
     private var statusText: some View {
-        Text("Доставка уведомлений с веб-приложений включена")
+        Text("Push notification delivery from web apps is enabled")
             .font(.system(size: 18, weight: .semibold))
             .foregroundStyle(c.text)
             .multilineTextAlignment(.center)
@@ -97,8 +97,8 @@ struct ConnectedView: View {
                     .foregroundStyle(Theme.primary)
                 Text(
                     push.authorizationStatus == .denied
-                    ? "Уведомления отключены. Включить можно в Настройках устройства."
-                    : "Включите уведомления, чтобы не пропускать сообщения"
+                    ? "Notifications are disabled. You can enable them in device Settings."
+                    : "Enable notifications so you don't miss messages"
                 )
                 .font(.subheadline)
                 .foregroundStyle(c.text)
@@ -106,10 +106,10 @@ struct ConnectedView: View {
             }
 
             if push.authorizationStatus == .denied {
-                Button("Открыть настройки") { openSettings() }
+                Button("Open Settings") { openSettings() }
                     .buttonStyle(SecondaryButtonStyle(color: Theme.primary))
             } else {
-                Button("Включить") {
+                Button("Enable") {
                     Task { await push.requestAuthorization() }
                 }
                 .buttonStyle(SecondaryButtonStyle(color: Theme.primary))
@@ -123,7 +123,7 @@ struct ConnectedView: View {
     // MARK: - Open app button
 
     private var openAppButton: some View {
-        Button("Открыть приложение") {
+        Button("Open App") {
             DeepLinkManager.shared.openLinkedApp()
         }
         .buttonStyle(PrimaryButtonStyle(color: Theme.green))
@@ -133,15 +133,15 @@ struct ConnectedView: View {
 
     private var legalLinks: some View {
         HStack(spacing: 8) {
-            linkButton("Политика конфиденциальности", Theme.privacyURL)
+            linkButton("Privacy Policy", Theme.privacyURL)
             Text("·")
                 .foregroundStyle(c.textFaint)
                 .font(.system(size: 14))
-            linkButton("Пользовательское соглашение", Theme.termsURL)
+            linkButton("Terms of Service", Theme.termsURL)
             Text("·")
                 .foregroundStyle(c.textFaint)
                 .font(.system(size: 14))
-            linkButton("Поддержка", Theme.supportURL)
+            linkButton("Support", Theme.supportURL)
         }
     }
 

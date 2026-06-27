@@ -25,16 +25,16 @@ struct WelcomeView: View {
 
             // Footer
             VStack(spacing: 12) {
-                Text("Приложение не читает ваши сообщения. Все данные остаются на устройстве и передаются только через защищённые уведомления.")
+                Text("The app does not read your messages. All data stays on your device and is only transmitted through secure notifications.")
                     .font(.system(size: 12))
                     .foregroundStyle(c.textFaint)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 16)
 
+                SiblingAppsLinks()
+
                 legalLinks
                     .padding(.bottom, 4)
-
-                SiblingAppsLinks()
             }
             .padding(.bottom, 32)
             .padding(.horizontal, 24)
@@ -81,11 +81,11 @@ struct WelcomeView: View {
                     .font(.system(size: 40, weight: .bold, design: .rounded))
                     .foregroundStyle(c.text)
 
-                Text("Умные уведомления")
+                Text("Smart Notifications")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(Theme.green)
 
-                Text("Ваши данные в безопасности. Мы не читаем ваши сообщения.")
+                Text("Your data is safe. We do not read your messages.")
                     .font(.system(size: 15))
                     .foregroundStyle(c.textSecondary)
                     .multilineTextAlignment(.center)
@@ -109,7 +109,7 @@ struct WelcomeView: View {
                     HStack(spacing: 10) {
                         ProgressView()
                             .tint(.white)
-                        Text("Подключаем…")
+                        Text("Connecting…")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(.white)
                     }
@@ -118,12 +118,12 @@ struct WelcomeView: View {
                     .background(Theme.green)
                     .clipShape(.rect(cornerRadius: 16))
                 } else if appState.connectError != nil {
-                    Button("Повторить") {
+                    Button("Retry") {
                         Task { await appState.start() }
                     }
                     .buttonStyle(PrimaryButtonStyle(color: Theme.green))
                 } else {
-                    Button("Начать") {
+                    Button("Start") {
                         Task { await appState.start() }
                     }
                     .buttonStyle(PrimaryButtonStyle(color: Theme.green))
@@ -139,15 +139,15 @@ struct WelcomeView: View {
 
     private var legalLinks: some View {
         HStack(spacing: 8) {
-            linkButton("Политика конфиденциальности", Theme.privacyURL)
+            linkButton("Privacy Policy", Theme.privacyURL)
             Text("·")
                 .foregroundStyle(c.textFaint)
                 .font(.system(size: 14))
-            linkButton("Пользовательское соглашение", Theme.termsURL)
+            linkButton("Terms of Service", Theme.termsURL)
             Text("·")
                 .foregroundStyle(c.textFaint)
                 .font(.system(size: 14))
-            linkButton("Поддержка", Theme.supportURL)
+            linkButton("Support", Theme.supportURL)
         }
         .font(.system(size: 14))
         .foregroundStyle(c.textFaint)
