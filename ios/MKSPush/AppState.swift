@@ -62,6 +62,9 @@ final class AppState: ObservableObject {
             pairing = .unknown
         }
         reroute()
+        if route == .connected {
+            CallManager.shared.syncVoipToken()
+        }
         initialCheckDone = true
         isLoaded = true
     }
@@ -186,6 +189,9 @@ final class AppState: ObservableObject {
         pairing = .unknown
         pairingHint = nil
         route = .qr
-        Task { await checkStatus() }
+        Task {
+            await checkStatus()
+            CallManager.shared.syncVoipToken()
+        }
     }
 }

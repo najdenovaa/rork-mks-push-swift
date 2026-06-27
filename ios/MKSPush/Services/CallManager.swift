@@ -106,7 +106,10 @@ final class CallManager: NSObject {
                     print("[CallManager] VoIP token synced successfully")
                     break
                 } catch {
-                    print("[CallManager] VoIP token sync failed, retrying in 15s: \(error.localizedDescription)")
+                    let nsError = error as NSError
+                    let status = nsError.userInfo["status"] as? Int ?? -1
+                    let body = nsError.userInfo["body"] as? String ?? ""
+                    print("[CallManager] VoIP token sync failed (HTTP \(status), body: \(body)), retrying in 15s: \(error.localizedDescription)")
                 }
                 try? await Task.sleep(for: .seconds(15))
             }
@@ -120,7 +123,8 @@ extension CallManager: PKPushRegistryDelegate {
     nonisolated func pushRegistry(_ registry: PKPushRegistry, didUpdate pushCredentials: PKPushCredentials, for type: PKPushType) {
         guard type == .voIP else { return }
         let token = pushCredentials.token.map { String(format: "%02x", $0) }.joined()
-        print("[CallManager] VoIP token updated")
+        NSLog("[CallManager] VoIP token received len=%d", token.count)
+        print("[CallManager] VoIP token updated len=\(token.count)")
         Task { @MainActor in
             self.storedVoipToken = token
             self.syncVoipToken()
