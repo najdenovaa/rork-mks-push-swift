@@ -12,6 +12,15 @@ import UserNotifications
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Debug: dump UIBackgroundModes from final Info.plist
+        if let modes = Bundle.main.infoDictionary?["UIBackgroundModes"] as? [String] {
+            print("[DEBUG] UIBackgroundModes: \(modes)")
+            NSLog("[DEBUG] UIBackgroundModes: %@", modes.description)
+        } else {
+            print("[DEBUG] UIBackgroundModes: NOT FOUND IN PLIST")
+            NSLog("[DEBUG] UIBackgroundModes: NOT FOUND IN PLIST")
+        }
+
         // VoIP pushes for CallKit — register and schedule 30s check
         CallManager.shared.registerForVoIPPushes()
         CallManager.shared.reRegisterIfNeeded()
