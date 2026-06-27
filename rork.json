@@ -3,7 +3,11 @@
     {
       "name": "MKS Push",
       "path": "ios",
-      "framework": "swift"
+      "framework": "swift",
+      "settings": {
+        "displayName": "MKS Push",
+        "iosBundleId": "ru.mskpush.app"
+      }
     }
   ],
   "$schema": "https://rork.com/schema/rork.json"
