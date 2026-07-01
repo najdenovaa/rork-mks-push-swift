@@ -3,12 +3,12 @@
 //  MKSPush
 //
 //  Large circular status indicator with animated pulse halo for "active".
-//  Ported from React Native build 23 StatusCircle.tsx.
+//  Pixel-parity with React Native StatusCircle.tsx.
 //
 
 import SwiftUI
 
-/// Animated status indicator — green circle with checkmark and pulsing halo when active.
+/// Animated status indicator — filled circle with white checkmark and pulsing halo when active.
 struct StatusCircle: View {
     let status: ConnectionStatus
 
@@ -20,20 +20,20 @@ struct StatusCircle: View {
                 PulseHalo(color: Theme.green, size: size)
             }
             Circle()
-                .strokeBorder(color, lineWidth: 3)
+                .fill(fillColor)
                 .frame(width: size, height: size)
                 .overlay {
                     if status == .active {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 32, weight: .bold))
-                            .foregroundStyle(Theme.green)
+                            .font(.system(size: 40, weight: .bold))
+                            .foregroundStyle(.white)
                     }
                 }
         }
         .frame(width: size, height: size)
     }
 
-    private var color: Color {
+    private var fillColor: Color {
         switch status {
         case .active:  return Theme.green
         case .pending: return Theme.primary
@@ -56,11 +56,8 @@ private struct PulseHalo: View {
             .frame(width: size, height: size)
             .opacity(animating ? 0 : 0.35)
             .scaleEffect(animating ? 1.6 : 1)
-            .onAppear {
-                withAnimation(.easeOut(duration: 1.6).repeatForever(autoreverses: false)) {
-                    animating = true
-                }
-            }
+            .animation(.easeOut(duration: 1.6).repeatForever(autoreverses: false), value: animating)
+            .onAppear { animating = true }
     }
 }
 

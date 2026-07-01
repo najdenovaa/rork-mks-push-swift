@@ -3,7 +3,7 @@
 //  MKSPush
 //
 //  Welcome screen when not connected.
-//  Ported from React Native build 23 WelcomeScreen.tsx.
+//  Pixel-parity with React Native WelcomeScreen.tsx.
 //
 
 import SwiftUI
@@ -11,8 +11,6 @@ import SwiftUI
 struct WelcomeView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.themeColors) private var c
-
-    @State private var bellPulse = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,7 +26,7 @@ struct WelcomeView: View {
                 SiblingAppsLinks()
 
                 Text("Приложение не читает ваши сообщения. Только доставка уведомлений.")
-                    .font(.system(size: 12))
+                    .font(.system(size: 16))
                     .foregroundStyle(c.textFaint)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 16)
@@ -43,59 +41,61 @@ struct WelcomeView: View {
         .background(c.bg)
     }
 
-    // MARK: - Body (hero + cta)
+    // MARK: - Body
 
     private var bodySection: some View {
         VStack(spacing: 0) {
+            if appState.isConnecting {
+                loadingState
+            } else {
+                contentState
+            }
+        }
+    }
+
+    // MARK: - Loading state
+
+    private var loadingState: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .scaleEffect(1.5)
+            Text("Подключаем...")
+                .font(.system(size: 20))
+                .foregroundStyle(c.textSecondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Content state
+
+    private var contentState: some View {
+        VStack(spacing: 0) {
             Spacer(minLength: 24)
 
-            // Hero icon
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Theme.green, Theme.primary],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 116, height: 116)
-                    .shadow(color: Theme.green.opacity(0.35), radius: 24, y: 10)
-                    .scaleEffect(bellPulse ? 1.04 : 1)
+            // Title
+            Text("MKS Push")
+                .font(.system(size: 32, weight: .bold))
+                .foregroundStyle(c.text)
 
-                Image(systemName: "bell.badge.fill")
-                    .font(.system(size: 50, weight: .medium))
-                    .foregroundStyle(.white)
-                    .symbolRenderingMode(.hierarchical)
-            }
-            .onAppear {
-                withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
-                    bellPulse = true
-                }
-            }
+            // Subtitle
+            Text("Умные уведомления")
+                .font(.system(size: 20))
+                .foregroundStyle(c.textSecondary)
+                .padding(.top, 8)
 
-            Spacer(minLength: 28)
+            Spacer(minLength: 20)
 
-            VStack(spacing: 12) {
-                Text("MKS Push")
-                    .font(.system(size: 40, weight: .bold, design: .rounded))
-                    .foregroundStyle(c.text)
+            // Security text
+            Text("Ваши данные в безопасности. Мы не читаем ваши сообщения.")
+                .font(.system(size: 18))
+                .foregroundStyle(c.textSecondary)
+                .multilineTextAlignment(.center)
+                .lineSpacing(8)
+                .padding(.horizontal, 24)
 
-                Text("Умные уведомления")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Theme.green)
+            Spacer(minLength: 40)
 
-                Text("Ваши данные в безопасности. Мы не читаем ваши сообщения.")
-                    .font(.system(size: 15))
-                    .foregroundStyle(c.textSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
-                    .padding(.top, 4)
-            }
-
-            Spacer(minLength: 16)
-
-            // Connect button / error
+            // Button / error
             VStack(spacing: 12) {
                 if let error = appState.connectError {
                     Text(error)
@@ -105,28 +105,16 @@ struct WelcomeView: View {
                         .padding(.horizontal, 8)
                 }
 
-                if appState.isConnecting {
-                    HStack(spacing: 10) {
-                        ProgressView()
-                            .tint(.white)
-                        Text("Подключаем…")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 17)
-                    .background(Theme.green)
-                    .clipShape(.rect(cornerRadius: 16))
-                } else if appState.connectError != nil {
+                if appState.connectError != nil {
                     Button("Повторить") {
                         Task { await appState.start() }
                     }
-                    .buttonStyle(PrimaryButtonStyle(color: Theme.green))
+                    .buttonStyle(WelcomePrimaryButtonStyle())
                 } else {
                     Button("Начать") {
                         Task { await appState.start() }
                     }
-                    .buttonStyle(PrimaryButtonStyle(color: Theme.green))
+                    .buttonStyle(WelcomePrimaryButtonStyle())
                 }
             }
             .padding(.horizontal, 24)
@@ -135,22 +123,21 @@ struct WelcomeView: View {
         }
     }
 
-    // MARK: - Legal links
+    // MARK: - Legal links (EN)
 
     private var legalLinks: some View {
         HStack(spacing: 8) {
-            linkButton("Политика конфиденциальности", Theme.privacyURL)
-            Text("·")
-                .foregroundStyle(c.textFaint)
+            linkButton("Privacy Policy", Theme.privacyURL)
+            Text("|")
+                .foregroundStyle(Color(red: 136/255, green: 136/255, blue: 136/255))
                 .font(.system(size: 14))
-            linkButton("Пользовательское соглашение", Theme.termsURL)
-            Text("·")
-                .foregroundStyle(c.textFaint)
+            linkButton("Terms of Service", Theme.termsURL)
+            Text("|")
+                .foregroundStyle(Color(red: 136/255, green: 136/255, blue: 136/255))
                 .font(.system(size: 14))
-            linkButton("Поддержка", Theme.supportURL)
+            linkButton("Support", Theme.supportURL)
         }
         .font(.system(size: 14))
-        .foregroundStyle(c.textFaint)
     }
 
     private func linkButton(_ title: String, _ urlString: String) -> some View {
@@ -161,7 +148,25 @@ struct WelcomeView: View {
         }
         .buttonStyle(.plain)
         .underline()
-        .foregroundStyle(c.textFaint)
+        .foregroundStyle(Color(red: 136/255, green: 136/255, blue: 136/255))
+    }
+}
+
+// MARK: - Welcome primary button (height 60, borderRadius 16, Theme.primary)
+
+private struct WelcomePrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 18, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 60)
+            .background(Theme.primary.opacity(configuration.isPressed ? 0.85 : 1))
+            .clipShape(.rect(cornerRadius: 16))
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }
 

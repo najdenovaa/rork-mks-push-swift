@@ -145,6 +145,22 @@ nonisolated struct APIService: Sendable {
         return resp.url
     }
 
+    // MARK: - Events
+
+    func fetchEvents(userId: String) async throws -> [EventItem] {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 8
+        config.waitsForConnectivity = false
+        let s = URLSession(configuration: config)
+        let url = baseURL.appendingPathComponent("api/events/\(userId)")
+        let (data, response) = try await s.data(from: url)
+        if let http = response as? HTTPURLResponse, http.statusCode == 404 {
+            throw URLError(.badServerResponse, userInfo: ["status": 404])
+        }
+        let resp = try Self.decoder.decode(EventsResponse.self, from: data)
+        return resp.events ?? []
+    }
+
     // MARK: - Helpers
 
     private func firePost(path: String, body: [String: String]) async {

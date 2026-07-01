@@ -3,7 +3,7 @@
 //  MKSPush
 //
 //  Handles mkspush:// deep links, push notification taps,
-//  and the openLinkedApp flow. Ported from React Native lib/notifications.ts.
+//  and the openLinkedApp flow. Pixel-parity with React Native lib/notifications.ts.
 //
 
 import Combine
@@ -46,20 +46,22 @@ final class DeepLinkManager: ObservableObject {
         let urlString = (userInfo["url"] as? String)
             ?? (userInfo["data"] as? [String: Any])?["url"] as? String
 
+        // Extract userId from /go/{id} or /pair/{id} in the URL
+        let pushUserId = extractUserIdFromPushURL(urlString)
+
         // VK links → open VK native
         if let url = urlString, isVKURL(url) {
             openVKNative()
             return
         }
 
-        // Other: resolve via open-target
+        // Resolve and open via linked app flow
         let resolved = resolvePushOpenURL(urlString)
-        openLinkedApp(httpsURL: resolved)
+        openLinkedApp(httpsURL: resolved, userId: pushUserId)
     }
 
-    /// Opens a linked app from the ConnectedScreen "Открыть приложение" button.
-    /// - If the URL is a Max link (max.ru), skips server open-target entirely.
-    /// - Server open-target is called only when the URL is nil or the generic mkspush.ru/go.
+    /// Opens a linked app from the ConnectedScreen "Открыть профиль" button.
+    /// Always fetches /api/open-target/{userId} first; falls back to native only if server returns nil.
     func openLinkedApp(httpsURL: String? = nil, userId: String? = nil) {
         let resolvedUserId: String? = userId ?? extractUserIdFromMKSURL(httpsURL) ?? UserStore.userId
 
@@ -69,20 +71,14 @@ final class DeepLinkManager: ObservableObject {
             return
         }
 
-        // Max URL → skip server, go straight to native max://
-        if let url = httpsURL, isAllowedMaxURL(url) {
-            fallbackOpen(httpsURL: httpsURL)
-            return
-        }
-
-        // open-target only when no URL or the generic mkspush.ru/go link
-        let useOpenTarget = httpsURL == nil || isMKSGoURL(httpsURL!)
-        if useOpenTarget, let uid = resolvedUserId {
+        // Always fetch open-target from server first if we have a userId
+        if let uid = resolvedUserId {
             Task {
                 if let target = try? await api.openTarget(userId: uid), let t = URL(string: target) {
                     await MainActor.run { UIApplication.shared.open(t) }
                     return
                 }
+                // Server returned nil → fallback to native / https
                 await MainActor.run { self.fallbackOpen(httpsURL: httpsURL) }
             }
         } else {
@@ -93,10 +89,7 @@ final class DeepLinkManager: ObservableObject {
     // MARK: - Private helpers
 
     private func fallbackOpen(httpsURL: String?) {
-        if let url = httpsURL, isAllowedMaxURL(url), let native = nativeMaxURL(url) {
-            UIApplication.shared.open(URL(string: native)!)
-
-        } else if let url = httpsURL, let u = URL(string: url) {
+        if let url = httpsURL, let u = URL(string: url) {
             UIApplication.shared.open(u)
         } else {
             openFallbackApp()
@@ -157,7 +150,6 @@ final class DeepLinkManager: ObservableObject {
         guard var comps = URLComponents(string: httpsURL),
               let host = comps.host else { return nil }
         comps.scheme = Theme.linkedAppScheme
-        // If host is exactly "max.ru" or ends with ".max.ru", keep it
         if host == "max.ru" || host.hasSuffix(".max.ru") {
             return comps.string
         }
@@ -169,7 +161,6 @@ final class DeepLinkManager: ObservableObject {
               let components = URLComponents(string: url),
               let host = components.host?.lowercased(),
               host.hasSuffix("mkspush.ru") || host == "mkspush.ru" else { return nil }
-        // Try path segments: /pair/USER_ID or query ?user_id=XXX
         let pathParts = components.path.split(separator: "/").map(String.init)
         if let idx = pathParts.firstIndex(of: "pair"), idx + 1 < pathParts.count {
             return pathParts[idx + 1]
@@ -178,5 +169,19 @@ final class DeepLinkManager: ObservableObject {
             return userId
         }
         return nil
+    }
+
+    /// Extract userId from push URL paths like /go/{id} or /pair/{id}
+    private func extractUserIdFromPushURL(_ urlString: String?) -> String? {
+        guard let url = urlString,
+              let components = URLComponents(string: url) else { return nil }
+        let pathParts = components.path.split(separator: "/").map(String.init)
+        if let idx = pathParts.firstIndex(of: "go"), idx + 1 < pathParts.count {
+            return pathParts[idx + 1]
+        }
+        if let idx = pathParts.firstIndex(of: "pair"), idx + 1 < pathParts.count {
+            return pathParts[idx + 1]
+        }
+        return extractUserIdFromMKSURL(urlString)
     }
 }

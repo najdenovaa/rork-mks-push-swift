@@ -3,7 +3,7 @@
 //  MKSPush
 //
 //  Pairing screen: QR code + 2FA mode.
-//  Ported from React Native build 23 QRScreen.tsx.
+//  Pixel-parity with React Native QRScreen.tsx.
 //
 
 import Combine
@@ -12,6 +12,7 @@ import SwiftUI
 struct QRView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.themeColors) private var c
+    @Environment(\.scenePhase) private var scenePhase
 
     // QR state
     @State private var qrImage: UIImage?
@@ -28,13 +29,22 @@ struct QRView: View {
 
     private let api = APIService.shared
 
+    // RN parity constants
+    private let pollInterval: TimeInterval = 1.5
+    private let qrRefreshInterval: TimeInterval = 20
+    private let validateTimeout: TimeInterval = 45
+
     private enum QRPhase { case loading, ready, error }
 
     var body: some View {
         VStack(spacing: 0) {
             // Back button
             HStack {
-                BackButton { Task { await restart() } }
+                if appState.pairing == .needs2FA {
+                    BackButton { Task { await disconnect() } }
+                } else {
+                    BackButton { Task { await restart() } }
+                }
                 Spacer()
             }
             .padding(.horizontal, 8)
@@ -59,15 +69,20 @@ struct QRView: View {
         .background(c.bg)
         .onAppear {
             if appState.pairing == .needs2FA {
-                qrPhase = .ready  // Skip QR loading in 2FA mode
+                qrPhase = .ready
             } else {
                 startQRRefresh()
             }
-            appState.startStatusPolling(interval: 5)
+            appState.startStatusPolling(interval: pollInterval)
         }
         .onDisappear {
             qrRefreshTask?.cancel()
             appState.stopStatusPolling()
+        }
+        .onChange(of: scenePhase) { newPhase in
+            if newPhase == .active {
+                Task { await appState.checkStatus() }
+            }
         }
     }
 
@@ -75,50 +90,47 @@ struct QRView: View {
 
     private var qrSection: some View {
         VStack(spacing: 24) {
+            // Title
             Text("Подключите ваше приложение")
                 .font(.title2.bold())
                 .foregroundStyle(c.text)
                 .multilineTextAlignment(.center)
 
-            instructions
+            // Steps — centered plain text, no numbered circles
+            stepsView
 
+            // QR image
             qrCard
         }
     }
 
-    private var instructions: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            instructionRow(1, "Откройте ваше приложение")
-            instructionRow(2, "Профиль → Устройства → Сканировать QR")
-            instructionRow(3, "Наведите камеру на QR-код ниже")
+    // MARK: - Steps (centered, no card)
+
+    private var stepsView: some View {
+        VStack(spacing: 14) {
+            Text("1. Откройте ваше приложение")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(c.text)
+                .multilineTextAlignment(.center)
+            Text("2. Профиль → Устройства → Сканировать QR")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(c.text)
+                .multilineTextAlignment(.center)
+            Text("3. Наведите камеру на QR-код ниже")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(c.text)
+                .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(18)
-        .background(c.card)
-        .clipShape(.rect(cornerRadius: 18))
+        .frame(maxWidth: .infinity)
     }
 
-    private func instructionRow(_ number: Int, _ text: String) -> some View {
-        HStack(alignment: .center, spacing: 14) {
-            Text("\(number)")
-                .font(.subheadline.bold())
-                .foregroundStyle(.white)
-                .frame(width: 28, height: 28)
-                .background(Theme.green)
-                .clipShape(Circle())
-            Text(text)
-                .font(.subheadline)
-                .foregroundStyle(c.text)
-            Spacer(minLength: 0)
-        }
-    }
+    // MARK: - QR card
 
     private var qrCard: some View {
         VStack(spacing: 14) {
             ZStack {
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(c.surface)
-                    .shadow(color: .black.opacity(0.06), radius: 16, y: 8)
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.white)
 
                 switch qrPhase {
                 case .loading:
@@ -129,13 +141,13 @@ struct QRView: View {
                             .interpolation(.none)
                             .resizable()
                             .scaledToFit()
-                            .padding(20)
+                            .padding(12)
                     }
                 case .error:
                     errorContent
                 }
             }
-            .frame(width: 260, height: 260)
+            .frame(width: 250, height: 250)
 
             if qrPhase != .error {
                 Text("QR обновляется каждые 20 секунд")
@@ -146,10 +158,11 @@ struct QRView: View {
     }
 
     private var loadingContent: some View {
-        VStack(spacing: 14) {
-            SpinnerRow(color: c.textSecondary)
+        VStack(spacing: 18) {
+            ProgressView()
+                .scaleEffect(1.5)
             Text("Генерируем QR-код…")
-                .font(.subheadline)
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(c.textSecondary)
         }
     }
@@ -159,10 +172,11 @@ struct QRView: View {
             Image(systemName: "exclamationmark.triangle.fill")
                 .font(.system(size: 34))
                 .foregroundStyle(Theme.amber)
-            Text("Не удалось получить QR-код")
+            Text("Не удалось получить QR-код. Нажмите, чтобы начать заново.")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(c.text)
                 .multilineTextAlignment(.center)
+                .padding(.horizontal, 12)
             Button("Начать заново") {
                 Task { await restart() }
             }
@@ -174,11 +188,12 @@ struct QRView: View {
     // MARK: - Waiting
 
     private var waitingSection: some View {
-        HStack(spacing: 8) {
-            Text("Ожидание подключения")
-                .font(.subheadline.weight(.medium))
+        VStack(spacing: 12) {
+            // Animated dots — 12x12, gap 10, active = Theme.primary
+            AnimatedDotsLarge(color: Theme.primary)
+            Text("Ожидание подключения...")
+                .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(c.textSecondary)
-            AnimatedDots(color: c.textSecondary)
         }
     }
 
@@ -198,21 +213,21 @@ struct QRView: View {
 
             if let hint = appState.pairingHint, !hint.isEmpty {
                 Text("Подсказка: \(hint)")
-                    .font(.subheadline)
-                    .foregroundStyle(c.textSecondary)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(Theme.primary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 16)
             }
 
             SecureField("Пароль", text: $twoFAPassword)
                 .textFieldStyle(.plain)
-                .padding(.vertical, 14)
+                .frame(height: 56)
                 .padding(.horizontal, 16)
                 .background(c.card)
                 .clipShape(.rect(cornerRadius: 14))
                 .overlay {
                     RoundedRectangle(cornerRadius: 14)
-                        .stroke(c.border, lineWidth: 1)
+                        .stroke(c.border, lineWidth: 1.5)
                 }
                 .disabled(isSubmitting2FA)
 
@@ -232,6 +247,8 @@ struct QRView: View {
                     }
                     Text(isSubmitting2FA ? "Отправка…" : "Подтвердить")
                 }
+                .frame(maxWidth: .infinity)
+                .frame(height: 56)
             }
             .buttonStyle(PrimaryButtonStyle(color: Theme.green))
             .disabled(isSubmitting2FA || twoFAPassword.isEmpty)
@@ -248,7 +265,7 @@ struct QRView: View {
         qrRefreshTask = Task {
             await validateQR(userId: userId)
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(20))
+                try? await Task.sleep(for: .seconds(qrRefreshInterval))
                 if Task.isCancelled { break }
                 qrVersion += 1
                 await loadQR(userId: userId)
@@ -256,28 +273,61 @@ struct QRView: View {
         }
     }
 
-    /// First load: try for up to 15 seconds then show error.
+    /// First load: try for up to validateTimeout seconds, then show error.
     private func validateQR(userId: String) async {
-        let deadline = Date().addingTimeInterval(15)
+        let deadline = Date().addingTimeInterval(validateTimeout)
         while Date() < deadline {
             if Task.isCancelled { return }
-            if let data = try? await api.qrImageData(userId: userId),
+            if let data = try? await qrFetch(userId: userId),
                let image = UIImage(data: data) {
                 qrImage = image
                 qrPhase = .ready
                 return
             }
+            // On 503 → retry every 1s; on 404 → reconnect
             try? await Task.sleep(for: .seconds(1))
         }
         qrPhase = .error
     }
 
     private func loadQR(userId: String) async {
-        if let data = try? await api.qrImageData(userId: userId),
+        if let data = try? await qrFetch(userId: userId),
            let image = UIImage(data: data) {
             qrImage = image
             qrPhase = .ready
         }
+    }
+
+    /// Fetch QR with 8s timeout, handle 404 → reconnect, 503 → silent retry
+    private func qrFetch(userId: String) async throws -> Data {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 8
+        config.waitsForConnectivity = false
+        let s = URLSession(configuration: config)
+
+        var url = api.baseURL.appendingPathComponent("api/max-qr/\(userId)")
+        if var comps = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            comps.queryItems = [URLQueryItem(name: "v", value: String(qrVersion))]
+            if let u = comps.url { url = u }
+        }
+
+        let (data, response) = try await s.data(from: url)
+        if let http = response as? HTTPURLResponse {
+            if http.statusCode == 404 {
+                // Session expired — trigger reconnect
+                await MainActor.run {
+                    Task { await appState.disconnect() }
+                }
+                throw URLError(.badServerResponse, userInfo: ["status": 404])
+            }
+            if http.statusCode == 503 {
+                throw URLError(.badServerResponse, userInfo: ["status": 503])
+            }
+            if !(200...299).contains(http.statusCode) {
+                throw URLError(.badServerResponse)
+            }
+        }
+        return data
     }
 
     // MARK: - 2FA submit
@@ -288,38 +338,45 @@ struct QRView: View {
         let error = await appState.submit2FA(password: twoFAPassword)
         isSubmitting2FA = false
         if let err = error {
-            twoFAError = err
+            twoFAError = "Неверный пароль или время истекло. Попробуйте снова."
+            _ = err // suppress unused
         }
     }
 
-    // MARK: - Restart
+    // MARK: - Restart / Disconnect
 
     private func restart() async {
         qrRefreshTask?.cancel()
         appState.stopStatusPolling()
         await appState.disconnect()
     }
+
+    private func disconnect() async {
+        qrRefreshTask?.cancel()
+        appState.stopStatusPolling()
+        await appState.disconnect()
+    }
 }
 
-// MARK: - Spinner row (matching RN spinnerRow)
+// MARK: - Animated dots (large — 12×12, gap 10, DOT_INTERVAL 800ms)
 
-private struct SpinnerRow: View {
+private struct AnimatedDotsLarge: View {
     let color: Color
     @State private var phase = 0
 
-    private let timer = Timer.publish(every: 0.3, on: .main, in: .common).autoconnect()
+    private let timer = Timer.publish(every: 0.8, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 10) {
             ForEach(0..<3, id: \.self) { index in
                 Circle()
                     .fill(color)
-                    .frame(width: 8, height: 8)
-                    .opacity(phase == index ? 1 : 0.25)
+                    .frame(width: 12, height: 12)
+                    .opacity(phase == index ? 1 : 0.3)
             }
         }
         .onReceive(timer) { _ in
-            withAnimation(.easeInOut(duration: 0.25)) {
+            withAnimation(.easeInOut(duration: 0.3)) {
                 phase = (phase + 1) % 3
             }
         }

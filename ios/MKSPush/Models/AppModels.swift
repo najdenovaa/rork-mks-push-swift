@@ -59,3 +59,19 @@ nonisolated struct OpenTargetResponse: Codable, Sendable {
 nonisolated struct BadgeResetResponse: Codable, Sendable {
     let ok: Bool?
 }
+
+// MARK: - Events
+
+/// GET /api/events/{userId}
+nonisolated struct EventsResponse: Codable, Sendable {
+    let ok: Bool?
+    let events: [EventItem]?
+}
+
+nonisolated struct EventItem: Codable, Sendable, Identifiable {
+    let title: String
+    let body: String
+    let time: String
+
+    var id: String { time }
+}
