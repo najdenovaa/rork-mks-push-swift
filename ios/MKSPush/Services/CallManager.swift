@@ -303,9 +303,13 @@ extension CallManager: CXProviderDelegate {
 
     nonisolated func provider(_ provider: CXProvider, perform action: CXEndCallAction) {
         Task { @MainActor in
-            if let call = self.activeCalls[action.callUUID], let userId = UserStore.userId {
-                await APIService.shared.callDeclined(userId: userId, callUUID: call.callUUID.uuidString)
+            if let userId = UserStore.userId {
+                let call = self.activeCalls[action.callUUID]
+                let callUUID = call?.callUUID.uuidString ?? action.callUUID.uuidString
+                let conversationId = call?.conversationId
+                await APIService.shared.callDeclined(userId: userId, callUUID: callUUID, conversationId: conversationId)
             }
+            self.pendingEndAfterAnswer = nil
             action.fulfill()
             self.activeCalls[action.callUUID] = nil
         }
