@@ -22,30 +22,33 @@ struct SiblingAppsLinks: View {
                 appItem(
                     name: "Мусорка",
                     url: "https://apps.apple.com/us/app/мусорка/id6762083275",
-                    imageName: "trash_bin_green"
+                    letter: "М"
                 )
                 appItem(
                     name: "Скидос",
                     url: "https://apps.apple.com/us/app/скидос/id6775503298",
-                    imageName: "discount_tag_blue"
+                    letter: "С"
                 )
             }
             .padding(.vertical, 8)
         }
     }
 
-    private func appItem(name: String, url: String, imageName: String) -> some View {
+    private func appItem(name: String, url: String, letter: String) -> some View {
         Button {
             if let u = URL(string: url) {
                 UIApplication.shared.open(u)
             }
         } label: {
             VStack(spacing: 8) {
-                Image(imageName)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 64, height: 64)
-                    .clipShape(.rect(cornerRadius: 14))
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(.white)
+                        .frame(width: 64, height: 64)
+                    Text(letter)
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color(red: 34/255, green: 197/255, blue: 94/255))
+                }
                 Text(name)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(c.text)
