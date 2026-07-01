@@ -42,6 +42,9 @@ final class CallManager: NSObject, ObservableObject {
     /// Tracks the call UUID -> raw UUID string from payload (for server callbacks).
     private var activeCalls: [UUID: IncomingCall] = [:]
 
+    /// When set, the answered call is waiting for audio session to activate before we can end it cleanly.
+    private var pendingEndAfterAnswer: UUID?
+
     private override init() {
         let config = CXProviderConfiguration(localizedName: "MKS Push")
         config.supportsVideo = true
@@ -265,8 +268,9 @@ extension CallManager: CXProviderDelegate {
     }
 
     nonisolated func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
+        let callUUID = action.callUUID
         Task { @MainActor in
-            let call = self.activeCalls[action.callUUID]
+            let call = self.activeCalls[callUUID]
             if let call, let userId = UserStore.userId {
                 await APIService.shared.callAnswered(
                     userId: userId,
@@ -276,14 +280,25 @@ extension CallManager: CXProviderDelegate {
             }
             self.openMaxApp()
             action.fulfill()
-            let end = CXEndCallAction(call: action.callUUID)
-            self.callController.request(CXTransaction(action: end)) { error in
-                if let error {
-                    print("[CallManager] end after answer error: \(error.localizedDescription)")
-                }
+            // Don't end the call yet — wait for audio session to activate first.
+            // CXEndCallAction before activation leaves the "Подключаюсь" UI stuck.
+            self.pendingEndAfterAnswer = callUUID
+            print("[CallManager] answer fulfilled, pendingEndAfterAnswer=\(callUUID.uuidString)")
+            // Fallback: if audio session never activates, close after 800ms anyway.
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(800))
+                self.finishAnsweredCallIfPending(callUUID)
             }
-            self.activeCalls[action.callUUID] = nil
         }
+    }
+
+    /// Reports the call as ended via provider.reportCall and cleans up bookkeeping.
+    private func finishAnsweredCallIfPending(_ callUUID: UUID) {
+        guard pendingEndAfterAnswer == callUUID else { return }
+        pendingEndAfterAnswer = nil
+        activeCalls[callUUID] = nil
+        provider.reportCall(with: callUUID, endedAt: Date(), reason: .answeredElsewhere)
+        print("[CallManager] finishAnsweredCallIfPending: reported endedAt for \(callUUID.uuidString)")
     }
 
     nonisolated func provider(_ provider: CXProvider, perform action: CXEndCallAction) {
@@ -297,11 +312,18 @@ extension CallManager: CXProviderDelegate {
     }
 
     nonisolated func provider(_ provider: CXProvider, didActivate audioSession: AVAudioSession) {
+        // We don't need a real audio session — just deactivate immediately
+        // so the system doesn't show the "connecting" CallKit UI.
         do {
-            try audioSession.setCategory(.playAndRecord, mode: .voiceChat, options: [.allowBluetooth])
-            try audioSession.setActive(true)
+            try audioSession.setActive(false, options: .notifyOthersOnDeactivation)
         } catch {
-            print("[CallManager] didActivate audio session error: \(error.localizedDescription)")
+            print("[CallManager] didActivate deactivate error: \(error.localizedDescription)")
+        }
+        // If we were waiting for activation to end the answered call, do it now.
+        Task { @MainActor in
+            if let callUUID = self.pendingEndAfterAnswer {
+                self.finishAnsweredCallIfPending(callUUID)
+            }
         }
     }
 
