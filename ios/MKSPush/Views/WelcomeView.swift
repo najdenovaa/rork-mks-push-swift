@@ -14,6 +14,20 @@ struct WelcomeView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if appState.isConnecting {
+                loadingState
+            } else {
+                bodyContent
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(c.bg)
+    }
+
+    // MARK: - Body (with footer)
+
+    private var bodyContent: some View {
+        VStack(spacing: 0) {
             Spacer(minLength: 24)
 
             bodySection
@@ -37,8 +51,6 @@ struct WelcomeView: View {
             .padding(.bottom, 32)
             .padding(.horizontal, 24)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(c.bg)
     }
 
     // MARK: - Body
@@ -57,11 +69,13 @@ struct WelcomeView: View {
 
     private var loadingState: some View {
         VStack(spacing: 16) {
+            Spacer()
             ProgressView()
                 .scaleEffect(1.5)
             Text("Подключаем...")
                 .font(.system(size: 20))
                 .foregroundStyle(c.textSecondary)
+            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -98,14 +112,12 @@ struct WelcomeView: View {
             // Button / error
             VStack(spacing: 12) {
                 if let error = appState.connectError {
-                    Text(error)
+                    Text("Не удалось подключиться к серверу. Проверьте интернет и нажмите \u{00AB}Повторить\u{00BB}.")
                         .font(.footnote)
                         .foregroundStyle(Theme.red)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 8)
-                }
 
-                if appState.connectError != nil {
                     Button("Повторить") {
                         Task { await appState.start() }
                     }

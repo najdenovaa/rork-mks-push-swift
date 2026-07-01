@@ -40,11 +40,7 @@ struct QRView: View {
         VStack(spacing: 0) {
             // Back button
             HStack {
-                if appState.pairing == .needs2FA {
-                    BackButton { Task { await disconnect() } }
-                } else {
-                    BackButton { Task { await restart() } }
-                }
+                BackButton { Task { await disconnect() } }
                 Spacer()
             }
             .padding(.horizontal, 8)
@@ -73,7 +69,7 @@ struct QRView: View {
             } else {
                 startQRRefresh()
             }
-            appState.startStatusPolling(interval: pollInterval)
+            appState.startStatusPolling(interval: pollInterval, stopWhenConnected: true)
         }
         .onDisappear {
             qrRefreshTask?.cancel()
@@ -178,7 +174,7 @@ struct QRView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 12)
             Button("Начать заново") {
-                Task { await restart() }
+                Task { await disconnect() }
             }
             .buttonStyle(SecondaryButtonStyle(color: Theme.primary))
         }
@@ -314,9 +310,13 @@ struct QRView: View {
         let (data, response) = try await s.data(from: url)
         if let http = response as? HTTPURLResponse {
             if http.statusCode == 404 {
-                // Session expired — trigger reconnect
+                // Session expired — trigger reconnect (not disconnect)
                 await MainActor.run {
-                    Task { await appState.disconnect() }
+                    Task { await appState.reconnect() }
+                }
+                // Reset QR to loading state and continue validate loop
+                await MainActor.run {
+                    qrPhase = .loading
                 }
                 throw URLError(.badServerResponse, userInfo: ["status": 404])
             }
@@ -343,13 +343,7 @@ struct QRView: View {
         }
     }
 
-    // MARK: - Restart / Disconnect
-
-    private func restart() async {
-        qrRefreshTask?.cancel()
-        appState.stopStatusPolling()
-        await appState.disconnect()
-    }
+    // MARK: - Disconnect
 
     private func disconnect() async {
         qrRefreshTask?.cancel()

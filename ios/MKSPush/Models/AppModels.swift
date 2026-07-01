@@ -73,5 +73,5 @@ nonisolated struct EventItem: Codable, Sendable, Identifiable {
     let body: String
     let time: String
 
-    var id: String { time }
+    var id: String { "\(time)-\(title)" }
 }

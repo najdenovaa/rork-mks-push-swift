@@ -83,7 +83,7 @@ final class AppState: ObservableObject {
     }
 
     /// Poll status periodically at the given interval until cancelled.
-    func startStatusPolling(interval: TimeInterval) {
+    func startStatusPolling(interval: TimeInterval, stopWhenConnected: Bool = true) {
         guard let id = userId else { return }
         statusPollTask?.cancel()
         statusPollTask = Task {
@@ -91,7 +91,7 @@ final class AppState: ObservableObject {
                 if let resp = try? await api.status(userId: id) {
                     applyStatus(resp)
                     reroute()
-                    if route == .connected { break }
+                    if stopWhenConnected && route == .connected { break }
                 }
                 try? await Task.sleep(for: .seconds(interval))
             }
@@ -192,6 +192,33 @@ final class AppState: ObservableObject {
         Task {
             await checkStatus()
             CallManager.shared.syncVoipToken()
+        }
+    }
+
+    // MARK: - Reconnect (session expired)
+
+    /// Reconnect after session expiry (404 on QR).
+    /// Clears UserStore, gets a new userId via POST /api/connect, and returns to QR.
+    func reconnect() async {
+        statusPollTask?.cancel()
+        UserStore.clear()
+        do {
+            let resp = try await api.connect()
+            UserStore.userId = resp.userId
+            userId = resp.userId
+            status = .pending
+            pairing = .qr
+            pairingHint = nil
+            route = .qr
+            PushManager.shared.kickRetryIfNeeded()
+            CallManager.shared.syncVoipToken()
+        } catch {
+            // Fallback to full disconnect on failure
+            userId = nil
+            status = .unknown
+            pairing = .unknown
+            pairingHint = nil
+            route = .welcome
         }
     }
 }

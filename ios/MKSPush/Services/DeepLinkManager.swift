@@ -61,35 +61,49 @@ final class DeepLinkManager: ObservableObject {
     }
 
     /// Opens a linked app from the ConnectedScreen "Открыть профиль" button.
-    /// Always fetches /api/open-target/{userId} first; falls back to native only if server returns nil.
     func openLinkedApp(httpsURL: String? = nil, userId: String? = nil) {
-        let resolvedUserId: String? = userId ?? extractUserIdFromMKSURL(httpsURL) ?? UserStore.userId
-
         // VK → open native
         if let url = httpsURL, isVKURL(url) {
             openVKNative()
             return
         }
 
-        // Always fetch open-target from server first if we have a userId
-        if let uid = resolvedUserId {
+        // Resolve userId ONLY from passed param or URL — never fall back to UserStore.userId
+        let resolvedUserId: String? = userId ?? extractUserIdFromMKSURL(httpsURL) ?? extractUserIdFromPushURL(httpsURL)
+
+        // Fetch open-target from server ONLY when we have a userId
+        // AND there's no specific URL (or it's the generic mkspush.ru/go)
+        if let uid = resolvedUserId, httpsURL == nil || isMKSGoURL(httpsURL!) {
             Task {
                 if let target = try? await api.openTarget(userId: uid), let t = URL(string: target) {
                     await MainActor.run { UIApplication.shared.open(t) }
                     return
                 }
-                // Server returned nil → fallback to native / https
                 await MainActor.run { self.fallbackOpen(httpsURL: httpsURL) }
             }
-        } else {
-            fallbackOpen(httpsURL: httpsURL)
+            return
         }
+
+        // Max URL → native scheme (production push taps)
+        if let url = httpsURL, isAllowedMaxURL(url), let native = nativeMaxURL(url) {
+            if let u = URL(string: native) {
+                UIApplication.shared.open(u)
+                return
+            }
+        }
+
+        // Open https URL directly or fallback
+        fallbackOpen(httpsURL: httpsURL)
     }
 
     // MARK: - Private helpers
 
     private func fallbackOpen(httpsURL: String?) {
         if let url = httpsURL, let u = URL(string: url) {
+            if isAllowedMaxURL(url), let native = nativeMaxURL(url), let nu = URL(string: native) {
+                UIApplication.shared.open(nu)
+                return
+            }
             UIApplication.shared.open(u)
         } else {
             openFallbackApp()

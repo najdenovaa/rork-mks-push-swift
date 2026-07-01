@@ -23,6 +23,12 @@ struct ConnectedView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
+                // Notification banner (ABOVE StatusCircle — RN order)
+                if push.authorizationStatus != .authorized {
+                    notificationBanner
+                        .padding(.top, 24)
+                }
+
                 // Status circle — always active on Connected screen
                 StatusCircle(status: .active)
                     .padding(.top, 24)
@@ -31,7 +37,7 @@ struct ConnectedView: View {
                 Text("Подключено")
                     .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(Theme.green)
-                    .padding(.top, 16)
+                    .padding(.top, 18)
 
                 // Sub text
                 Text("Уведомления с веб-приложений приходят автоматически")
@@ -40,15 +46,9 @@ struct ConnectedView: View {
                     .multilineTextAlignment(.center)
                     .padding(.top, 8)
 
-                // Notification banner (before body, not inside status block)
-                if push.authorizationStatus != .authorized {
-                    notificationBanner
-                        .padding(.top, 24)
-                }
-
                 // Events feed
                 eventsSection
-                    .padding(.top, 28)
+                    .padding(.top, 22)
 
                 // Open profile button
                 Button("Открыть профиль") {
@@ -58,7 +58,7 @@ struct ConnectedView: View {
                     )
                 }
                 .buttonStyle(ConnectedPrimaryButtonStyle())
-                .padding(.top, 28)
+                .padding(.top, 22)
 
                 // Disconnect button — border only, red text, no fill
                 Button("Отключить") {
@@ -88,7 +88,7 @@ struct ConnectedView: View {
             Task {
                 await push.refreshAuthorizationStatus()
             }
-            appState.startStatusPolling(interval: 60)
+            appState.startStatusPolling(interval: 60, stopWhenConnected: false)
             startEventsPolling()
         }
         .onDisappear {
@@ -143,29 +143,24 @@ struct ConnectedView: View {
             // Title row with count
             HStack {
                 Text("Последние события")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(c.text)
                 Spacer()
                 Text("\(events.count)")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 14))
                     .foregroundStyle(c.textSecondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(c.border.opacity(0.5))
-                    .clipShape(.capsule)
             }
 
             if events.isEmpty {
                 Text("Событий пока нет. Они появятся при получении данных.")
                     .font(.system(size: 14))
                     .foregroundStyle(c.textFaint)
-                    .padding(.vertical, 20)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                    .frame(maxWidth: .infinity, minHeight: 120, alignment: .center)
             } else {
                 ScrollView {
-                    VStack(spacing: 8) {
-                        ForEach(events) { event in
-                            eventCard(event)
+                    VStack(spacing: 1) {
+                        ForEach(Array(events.enumerated()), id: \.offset) { index, event in
+                            eventCard(event, index: index)
                         }
                     }
                 }
@@ -174,24 +169,27 @@ struct ConnectedView: View {
         }
     }
 
-    private func eventCard(_ event: EventItem) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
+    private func eventCard(_ event: EventItem, index: Int) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(event.title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 16, weight: .bold))
                     .foregroundStyle(c.text)
-                Spacer()
-                Text(formatTime(event.time))
-                    .font(.system(size: 12))
-                    .foregroundStyle(c.textFaint)
+                    .lineLimit(1)
+                Text(event.body)
+                    .font(.system(size: 14))
+                    .foregroundStyle(c.textSecondary)
+                    .lineLimit(2)
             }
-            Text(event.body)
-                .font(.system(size: 14))
-                .foregroundStyle(c.textSecondary)
+            Spacer(minLength: 8)
+            Text(formatTime(event.time))
+                .font(.system(size: 13))
+                .foregroundStyle(c.textFaint)
+                .frame(alignment: .topTrailing)
         }
         .padding(12)
         .background(c.card)
-        .clipShape(.rect(cornerRadius: 10))
+        .clipShape(.rect(cornerRadius: 12))
     }
 
     // MARK: - Legal links (EN)
