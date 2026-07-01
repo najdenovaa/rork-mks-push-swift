@@ -191,9 +191,13 @@ final class CallManager: NSObject, ObservableObject {
         }
     }
 
-    /// Opens the MAX app (server redirects appropriately).
+    /// Opens the MAX app via deep link, falling back to the website.
     private func openMaxApp() {
-        guard let url = URL(string: "https://mkspush.ru/go") else { return }
+        let candidates = [
+            URL(string: "max://"),
+            URL(string: "https://max.ru/"),
+        ].compactMap { $0 }
+        guard let url = candidates.first else { return }
         DispatchQueue.main.async {
             UIApplication.shared.open(url, options: [:], completionHandler: nil)
         }
@@ -262,8 +266,22 @@ extension CallManager: CXProviderDelegate {
 
     nonisolated func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
         Task { @MainActor in
+            let call = self.activeCalls[action.callUUID]
+            if let call, let userId = UserStore.userId {
+                await APIService.shared.callAnswered(
+                    userId: userId,
+                    callUUID: call.callUUID.uuidString,
+                    conversationId: call.conversationId
+                )
+            }
             self.openMaxApp()
             action.fulfill()
+            let end = CXEndCallAction(call: action.callUUID)
+            self.callController.request(CXTransaction(action: end)) { error in
+                if let error {
+                    print("[CallManager] end after answer error: \(error.localizedDescription)")
+                }
+            }
             self.activeCalls[action.callUUID] = nil
         }
     }

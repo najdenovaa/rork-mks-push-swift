@@ -108,6 +108,14 @@ nonisolated struct APIService: Sendable {
 
     // MARK: - Call
 
+    func callAnswered(userId: String, callUUID: String, conversationId: String?) async {
+        var body: [String: String] = ["call_uuid": callUUID]
+        if let conversationId, !conversationId.isEmpty {
+            body["conversation_id"] = conversationId
+        }
+        await firePost(path: "api/call-answered/\(userId)", body: body)
+    }
+
     func callDeclined(userId: String, callUUID: String) async {
         await firePost(path: "api/call-declined/\(userId)", body: ["call_uuid": callUUID])
     }
