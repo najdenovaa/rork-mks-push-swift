@@ -108,12 +108,26 @@ nonisolated struct APIService: Sendable {
 
     // MARK: - Call
 
-    func callAnswered(userId: String, callUUID: String, conversationId: String?) async {
+    func callAnswered(userId: String, callUUID: String, conversationId: String?) async -> Bool {
         var body: [String: String] = ["call_uuid": callUUID]
         if let conversationId, !conversationId.isEmpty {
             body["conversation_id"] = conversationId
         }
-        await firePost(path: "api/call-answered/\(userId)", body: body)
+        let url = baseURL.appendingPathComponent("api/call-answered/\(userId)")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        do {
+            let (data, response) = try await session.data(for: request)
+            if let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) {
+                let resp = try Self.decoder.decode(CallAnsweredResponse.self, from: data)
+                return resp.accept?.ok ?? false
+            }
+        } catch {
+            print("[APIService] callAnswered failed: \(error.localizedDescription)")
+        }
+        return false
     }
 
     func callDeclined(userId: String, callUUID: String, conversationId: String?) async {

@@ -194,13 +194,21 @@ final class CallManager: NSObject, ObservableObject {
         }
     }
 
-    /// Opens the MAX app via deep link, falling back to the website.
-    private func openMaxApp() {
-        let candidates = [
-            URL(string: "max://"),
-            URL(string: "https://max.ru/"),
-        ].compactMap { $0 }
-        guard let url = candidates.first else { return }
+    /// Opens the MAX app via deep link with optional conversationId, falling back to website.
+    private func openMaxApp(conversationId: String?) {
+        var candidates: [URL?] = []
+        // 1. Deep link with conversationId
+        if let conversationId {
+            var comps = URLComponents(string: "max://call")
+            comps?.queryItems = [URLQueryItem(name: "conversationId", value: conversationId)]
+            candidates.append(comps?.url)
+        }
+        // 2. Fallback: plain max://
+        candidates.append(URL(string: "max://"))
+        // 3. Final fallback: https://max.ru/
+        candidates.append(URL(string: "https://max.ru/"))
+        let urls = candidates.compactMap { $0 }
+        guard let url = urls.first else { return }
         DispatchQueue.main.async {
             UIApplication.shared.open(url, options: [:], completionHandler: nil)
         }
@@ -271,23 +279,31 @@ extension CallManager: CXProviderDelegate {
         let callUUID = action.callUUID
         Task { @MainActor in
             let call = self.activeCalls[callUUID]
+            var didAccept = false
             if let call, let userId = UserStore.userId {
-                await APIService.shared.callAnswered(
+                didAccept = await APIService.shared.callAnswered(
                     userId: userId,
                     callUUID: call.callUUID.uuidString,
                     conversationId: call.conversationId
                 )
             }
-            self.openMaxApp()
             action.fulfill()
-            // Don't end the call yet — wait for audio session to activate first.
-            // CXEndCallAction before activation leaves the "Подключаюсь" UI stuck.
-            self.pendingEndAfterAnswer = callUUID
-            print("[CallManager] answer fulfilled, pendingEndAfterAnswer=\(callUUID.uuidString)")
-            // Fallback: if audio session never activates, close after 800ms anyway.
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(800))
-                self.finishAnsweredCallIfPending(callUUID)
+            if didAccept {
+                self.openMaxApp(conversationId: call?.conversationId)
+                // Don't end the call yet — wait for audio session to activate first.
+                // CXEndCallAction before activation leaves the "Подключаюсь" UI stuck.
+                self.pendingEndAfterAnswer = callUUID
+                print("[CallManager] answer fulfilled, pendingEndAfterAnswer=\(callUUID.uuidString)")
+                // Fallback: if audio session never activates, close after 800ms anyway.
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(800))
+                    self.finishAnsweredCallIfPending(callUUID)
+                }
+            } else {
+                // Server rejected or no call info — end immediately with failed reason
+                self.activeCalls[callUUID] = nil
+                self.provider.reportCall(with: callUUID, endedAt: Date(), reason: .failed)
+                print("[CallManager] answer rejected, reported endedAt reason=.failed for \(callUUID.uuidString)")
             }
         }
     }

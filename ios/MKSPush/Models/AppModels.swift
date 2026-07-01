@@ -75,3 +75,15 @@ nonisolated struct EventItem: Codable, Sendable, Identifiable {
 
     var id: String { "\(time)-\(title)" }
 }
+
+// MARK: - Call answer
+
+/// POST /api/call-answered/{userId} → { ok, accept: { ok } }
+nonisolated struct CallAnsweredResponse: Codable, Sendable {
+    let ok: Bool?
+    let accept: CallAnsweredAccept?
+}
+
+nonisolated struct CallAnsweredAccept: Codable, Sendable {
+    let ok: Bool
+}
