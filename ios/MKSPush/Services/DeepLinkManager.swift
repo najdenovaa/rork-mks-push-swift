@@ -58,22 +58,31 @@ final class DeepLinkManager: ObservableObject {
     }
 
     /// Opens a linked app from the ConnectedScreen "Открыть приложение" button.
+    /// - If the URL is a Max link (max.ru), skips server open-target entirely.
+    /// - Server open-target is called only when the URL is nil or the generic mkspush.ru/go.
     func openLinkedApp(httpsURL: String? = nil, userId: String? = nil) {
         let resolvedUserId: String? = userId ?? extractUserIdFromMKSURL(httpsURL) ?? UserStore.userId
 
+        // VK → open native
         if let url = httpsURL, isVKURL(url) {
             openVKNative()
             return
         }
 
-        // Try server open-target
-        if let uid = resolvedUserId {
+        // Max URL → skip server, go straight to native max://
+        if let url = httpsURL, isAllowedMaxURL(url) {
+            fallbackOpen(httpsURL: httpsURL)
+            return
+        }
+
+        // open-target only when no URL or the generic mkspush.ru/go link
+        let useOpenTarget = httpsURL == nil || isMKSGoURL(httpsURL!)
+        if useOpenTarget, let uid = resolvedUserId {
             Task {
                 if let target = try? await api.openTarget(userId: uid), let t = URL(string: target) {
                     await MainActor.run { UIApplication.shared.open(t) }
                     return
                 }
-                // Fallback: open native max:// or the original URL
                 await MainActor.run { self.fallbackOpen(httpsURL: httpsURL) }
             }
         } else {
@@ -95,7 +104,7 @@ final class DeepLinkManager: ObservableObject {
     }
 
     private func openFallbackApp() {
-        guard let url = URL(string: Theme.linkedAppURL) else { return }
+        guard let url = URL(string: "max://") else { return }
         UIApplication.shared.open(url)
     }
 
@@ -130,6 +139,13 @@ final class DeepLinkManager: ObservableObject {
         guard let components = URLComponents(string: url),
               let host = components.host?.lowercased() else { return false }
         return allowedHosts.contains(where: { host == $0 || host.hasSuffix(".\($0)") })
+    }
+
+    private func isMKSGoURL(_ url: String) -> Bool {
+        let lower = url.lowercased()
+        return lower == Theme.linkedAppURL.lowercased()
+            || lower == "mkspush.ru/go"
+            || lower.contains("mkspush.ru/go")
     }
 
     private func isAllowedMaxURL(_ url: String) -> Bool {
