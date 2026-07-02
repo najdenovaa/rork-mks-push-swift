@@ -138,6 +138,14 @@ nonisolated struct APIService: Sendable {
         await firePost(path: "api/call-declined/\(userId)", body: body)
     }
 
+    func callJoinRetry(userId: String, conversationId: String?) async {
+        var body: [String: String] = [:]
+        if let conversationId, !conversationId.isEmpty {
+            body["conversation_id"] = conversationId
+        }
+        await firePost(path: "api/call-join-retry/\(userId)", body: body)
+    }
+
     // MARK: - Disconnect
 
     func disconnect(userId: String) async {
