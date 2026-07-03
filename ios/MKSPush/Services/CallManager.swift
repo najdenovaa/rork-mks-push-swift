@@ -287,6 +287,13 @@ extension CallManager: CXProviderDelegate {
                     callUUID: call.callUUID.uuidString,
                     conversationId: call.conversationId
                 )
+                // JOIN retry immediately while app is still foregrounded
+                if didAccept {
+                    await APIService.shared.callJoinRetry(
+                        userId: userId,
+                        conversationId: call.conversationId
+                    )
+                }
             }
             action.fulfill()
             if didAccept {
@@ -295,15 +302,6 @@ extension CallManager: CXProviderDelegate {
                 // CXEndCallAction before activation leaves the "Подключаюсь" UI stuck.
                 self.pendingEndAfterAnswer = callUUID
                 print("[CallManager] answer fulfilled, pendingEndAfterAnswer=\(callUUID.uuidString)")
-                // Fire-and-forget: after 2 seconds, retry join with vcp on server
-                let userId = UserStore.userId
-                let conversationId = call?.conversationId
-                Task {
-                    try? await Task.sleep(for: .seconds(2))
-                    if let userId {
-                        await APIService.shared.callJoinRetry(userId: userId, conversationId: conversationId)
-                    }
-                }
                 // Fallback: if audio session never activates, close after 800ms anyway.
                 Task { @MainActor in
                     try? await Task.sleep(for: .milliseconds(800))
