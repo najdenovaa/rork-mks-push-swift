@@ -196,8 +196,7 @@ final class CallManager: NSObject, ObservableObject {
         }
     }
 
-    /// Opens Max with accept parameters (tgt=accept), matching the web.max.ru accept flow.
-    /// Candidates: https://web.max.ru/?...&tgt=accept → max://call?...&tgt=accept → max:// → https://web.max.ru/
+    /// Opens Max with accept parameters (tgt=accept). Native max:// first; web.max.ru only when Max is not installed.
     private func openMaxApp(conversationId: String?, vcp: String?, joinLink: String?) {
         var items: [URLQueryItem] = []
         if let conversationId, !conversationId.isEmpty {
@@ -206,19 +205,24 @@ final class CallManager: NSObject, ObservableObject {
         items.append(URLQueryItem(name: "tgt", value: "accept"))
         if let vcp, !vcp.isEmpty { items.append(URLQueryItem(name: "vcp", value: vcp)) }
         if let joinLink, !joinLink.isEmpty { items.append(URLQueryItem(name: "joinLink", value: joinLink)) }
-
-        var webComps = URLComponents(string: "https://web.max.ru/")
-        webComps?.queryItems = items
-        let webAcceptURL = webComps?.url
-
         var nativeComps = URLComponents(string: "max://call")
         nativeComps?.queryItems = items
         let nativeAcceptURL = nativeComps?.url
-
-        let candidates: [URL?] = [webAcceptURL, nativeAcceptURL, URL(string: "max://"), URL(string: "https://web.max.ru/")]
-        let urls = candidates.compactMap { $0 }
-        guard let url = urls.first else { return }
-        print("[CallManager] openMaxApp tgt=accept vcpLen=\(vcp?.count ?? 0) joinLink=\(joinLink != nil) urlPrefix=\(url.absoluteString.prefix(100))")
+        var webComps = URLComponents(string: "https://web.max.ru/")
+        webComps?.queryItems = items
+        let webAcceptURL = webComps?.url
+        let maxRoot = URL(string: "max://")
+        let url: URL? = {
+            if let nativeAcceptURL, UIApplication.shared.canOpenURL(nativeAcceptURL) {
+                return nativeAcceptURL
+            }
+            if let maxRoot, UIApplication.shared.canOpenURL(maxRoot) {
+                return nativeAcceptURL ?? maxRoot
+            }
+            return webAcceptURL ?? URL(string: "https://web.max.ru/")
+        }()
+        guard let url else { return }
+        print("[CallManager] openMaxApp tgt=accept scheme=\(url.scheme ?? "?") urlPrefix=\(url.absoluteString.prefix(100))")
         DispatchQueue.main.async {
             UIApplication.shared.open(url, options: [:], completionHandler: nil)
         }
