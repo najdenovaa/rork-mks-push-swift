@@ -21,6 +21,7 @@ nonisolated struct IncomingCall: Sendable {
     let callUUID: UUID
     let isVideo: Bool
     let vcp: String?
+    let joinLink: String?
 }
 
 /// Central coordinator for PushKit VoIP registration and CallKit call reporting.
@@ -195,19 +196,29 @@ final class CallManager: NSObject, ObservableObject {
         }
     }
 
-    /// Opens the MAX app via deep link with optional conversationId and vcp, falling back to website.
-    private func openMaxApp(conversationId: String?, vcp: String?) {
-        var comps = URLComponents(string: "max://call")
+    /// Opens Max with accept parameters (tgt=accept), matching the web.max.ru accept flow.
+    /// Candidates: https://web.max.ru/?...&tgt=accept → max://call?...&tgt=accept → max:// → https://web.max.ru/
+    private func openMaxApp(conversationId: String?, vcp: String?, joinLink: String?) {
         var items: [URLQueryItem] = []
-        if let conversationId { items.append(URLQueryItem(name: "conversationId", value: conversationId)) }
+        if let conversationId, !conversationId.isEmpty {
+            items.append(URLQueryItem(name: "conversationId", value: conversationId))
+        }
+        items.append(URLQueryItem(name: "tgt", value: "accept"))
         if let vcp, !vcp.isEmpty { items.append(URLQueryItem(name: "vcp", value: vcp)) }
-        comps?.queryItems = items.isEmpty ? nil : items
-        let maxCallURL = comps?.url
+        if let joinLink, !joinLink.isEmpty { items.append(URLQueryItem(name: "joinLink", value: joinLink)) }
 
-        let candidates: [URL?] = [maxCallURL, URL(string: "max://"), URL(string: "https://max.ru/")]
+        var webComps = URLComponents(string: "https://web.max.ru/")
+        webComps?.queryItems = items
+        let webAcceptURL = webComps?.url
+
+        var nativeComps = URLComponents(string: "max://call")
+        nativeComps?.queryItems = items
+        let nativeAcceptURL = nativeComps?.url
+
+        let candidates: [URL?] = [webAcceptURL, nativeAcceptURL, URL(string: "max://"), URL(string: "https://web.max.ru/")]
         let urls = candidates.compactMap { $0 }
         guard let url = urls.first else { return }
-        print("[CallManager] openMaxApp vcpLen=\(vcp?.count ?? 0) urlPrefix=\(url.absoluteString.prefix(80))")
+        print("[CallManager] openMaxApp tgt=accept vcpLen=\(vcp?.count ?? 0) joinLink=\(joinLink != nil) urlPrefix=\(url.absoluteString.prefix(100))")
         DispatchQueue.main.async {
             UIApplication.shared.open(url, options: [:], completionHandler: nil)
         }
@@ -252,6 +263,7 @@ extension CallManager: PKPushRegistryDelegate {
         let conversationId = dict["conversation_id"] as? String
         let isVideo = (dict["is_video"] as? Bool) ?? ((dict["is_video"] as? NSNumber)?.boolValue ?? false)
         let vcp = dict["vcp"] as? String
+        let joinLink = (dict["join_link"] as? String) ?? (dict["joinLink"] as? String)
         let uuid = (dict["call_uuid"] as? String).flatMap { UUID(uuidString: $0) } ?? UUID()
 
         let call = IncomingCall(
@@ -260,7 +272,8 @@ extension CallManager: PKPushRegistryDelegate {
             conversationId: conversationId,
             callUUID: uuid,
             isVideo: isVideo,
-            vcp: vcp
+            vcp: vcp,
+            joinLink: joinLink
         )
 
         Task { @MainActor in
@@ -297,7 +310,11 @@ extension CallManager: CXProviderDelegate {
             }
             action.fulfill()
             if didAccept {
-                self.openMaxApp(conversationId: call?.conversationId, vcp: call?.vcp)
+                self.openMaxApp(
+                    conversationId: call?.conversationId,
+                    vcp: call?.vcp,
+                    joinLink: call?.joinLink
+                )
                 // Don't end the call yet — wait for audio session to activate first.
                 // CXEndCallAction before activation leaves the "Подключаюсь" UI stuck.
                 self.pendingEndAfterAnswer = callUUID
