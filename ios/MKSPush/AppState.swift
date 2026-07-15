@@ -29,6 +29,7 @@ final class AppState: ObservableObject {
     @Published var isConnecting = false
     @Published var connectError: String?
     @Published var isLoaded = false
+    @Published var isBootstrapping = false
 
     // MARK: - Dependencies
 
@@ -41,7 +42,17 @@ final class AppState: ObservableObject {
     init() {
         if let id = UserStore.userId, !id.isEmpty {
             userId = id
-            route = .qr
+            // Fast path: if we last knew the account was active, route straight to the
+            // Connected screen immediately instead of blocking on a network round-trip.
+            // A background refresh still runs to catch any server-side changes.
+            if UserStore.cachedStatus == ConnectionStatus.active.rawValue {
+                status = .active
+                pairing = .active
+                route = .connected
+                isLoaded = true
+            } else {
+                route = .qr
+            }
             Task { await resolveInitialRoute() }
         } else {
             isLoaded = true
@@ -54,18 +65,26 @@ final class AppState: ObservableObject {
             isLoaded = true
             return
         }
+        let wasActiveFromCache = status == .active
+        isBootstrapping = true
         do {
             let resp = try await api.status(userId: id)
-            applyStatus(resp)
+            applyStatusPayload(resp)
+            reroute()
         } catch {
-            status = .unknown
-            pairing = .unknown
+            // Network hiccup on launch: don't kick an already-active user back to QR —
+            // keep showing Connected from cache and let a later poll correct it.
+            if !wasActiveFromCache {
+                status = .unknown
+                pairing = .unknown
+                reroute()
+            }
         }
-        reroute()
         if route == .connected {
             CallManager.shared.syncVoipToken()
         }
         initialCheckDone = true
+        isBootstrapping = false
         isLoaded = true
     }
 
@@ -75,7 +94,7 @@ final class AppState: ObservableObject {
         guard let id = userId else { return }
         do {
             let resp = try await api.status(userId: id)
-            applyStatus(resp)
+            applyStatusPayload(resp)
         } catch {
             // Keep current state on network error
         }
@@ -113,6 +132,13 @@ final class AppState: ObservableObject {
         pairingHint = resp.hint
     }
 
+    /// Applies a status response AND persists the raw status string to disk so the next
+    /// cold launch can route immediately without waiting on the network (see init()).
+    private func applyStatusPayload(_ resp: StatusResponse) {
+        applyStatus(resp)
+        UserStore.cachedStatus = resp.status
+    }
+
     /// Compute the screen from current state.
     private func reroute() {
         if userId == nil {
@@ -134,6 +160,7 @@ final class AppState: ObservableObject {
         do {
             let resp = try await api.connect()
             UserStore.userId = resp.userId
+            UserStore.cachedStatus = ConnectionStatus.pending.rawValue
             userId = resp.userId
             status = .pending
             pairing = .qr
@@ -184,6 +211,7 @@ final class AppState: ObservableObject {
     /// Called by deep link: mkspush://pair?user_id=XXX
     func setUserIdFromDeepLink(_ id: String) {
         UserStore.userId = id
+        UserStore.cachedStatus = nil
         userId = id
         status = .unknown
         pairing = .unknown
@@ -205,6 +233,7 @@ final class AppState: ObservableObject {
         do {
             let resp = try await api.connect()
             UserStore.userId = resp.userId
+            UserStore.cachedStatus = ConnectionStatus.pending.rawValue
             userId = resp.userId
             status = .pending
             pairing = .qr
