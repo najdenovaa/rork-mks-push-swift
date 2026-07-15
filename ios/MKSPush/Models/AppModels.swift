@@ -41,6 +41,16 @@ nonisolated struct StatusResponse: Codable, Sendable {
     let status: String?
     let pairing: String?
     let hint: String?
+    /// Base64-encoded PNG QR code, served directly by the status endpoint.
+    let qrPng: String?
+
+    enum CodingKeys: String, CodingKey {
+        case ok
+        case status
+        case pairing
+        case hint
+        case qrPng = "qr_png"
+    }
 }
 
 /// POST /api/2fa/{userId}

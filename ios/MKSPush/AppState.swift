@@ -30,6 +30,8 @@ final class AppState: ObservableObject {
     @Published var connectError: String?
     @Published var isLoaded = false
     @Published var isBootstrapping = false
+    /// Base64 PNG QR code payload from the server (nil when not provided, falls back to /api/max-qr/{userId}).
+    @Published var qrPng: String?
 
     // MARK: - Dependencies
 
@@ -130,6 +132,7 @@ final class AppState: ObservableObject {
             pairing = PairingMode(rawValue: p) ?? .unknown
         }
         pairingHint = resp.hint
+        qrPng = resp.qrPng
     }
 
     /// Applies a status response AND persists the raw status string to disk so the next

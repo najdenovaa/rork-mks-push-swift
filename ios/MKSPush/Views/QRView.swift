@@ -66,10 +66,22 @@ struct QRView: View {
         .onAppear {
             if appState.pairing == .needs2FA {
                 qrPhase = .ready
+            } else if let png = appState.qrPng, let image = decodeQRPng(png) {
+                qrImage = image
+                qrPhase = .ready
             } else {
                 startQRRefresh()
             }
             appState.startStatusPolling(interval: pollInterval, stopWhenConnected: true)
+        }
+        .onChange(of: appState.qrPng) { newValue in
+            guard appState.pairing != .needs2FA else { return }
+            if let png = newValue, let image = decodeQRPng(png) {
+                // Server-provided QR arrived — use it and stop the fallback network polling.
+                qrImage = image
+                qrPhase = .ready
+                qrRefreshTask?.cancel()
+            }
         }
         .onDisappear {
             qrRefreshTask?.cancel()
@@ -252,7 +264,15 @@ struct QRView: View {
         .padding(.top, 12)
     }
 
-    // MARK: - QR polling
+    // MARK: - QR decoding (server-provided base64 PNG)
+
+    /// Decodes the base64 PNG QR code returned by /api/status/{userId} (qr_png field).
+    private func decodeQRPng(_ base64: String) -> UIImage? {
+        guard let data = Data(base64Encoded: base64) else { return nil }
+        return UIImage(data: data)
+    }
+
+    // MARK: - QR polling (fallback: /api/max-qr/{userId} when qr_png is unavailable)
 
     private func startQRRefresh() {
         guard let userId = appState.userId else { return }
