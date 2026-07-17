@@ -9,6 +9,7 @@
 
 import Foundation
 import SwiftUI
+import UIKit
 import WidgetKit
 
 /// Reads/writes the widget feed through the App Group so the widget extension
@@ -52,6 +53,21 @@ enum WidgetFeedManager {
             WidgetFeedStore.markDisconnected()
             return false
         }
+
+        // Give the fetch a background-execution window so it can finish even if the app
+        // is backgrounded mid-flight (e.g. triggered right as a push arrives).
+        var bgTask: UIBackgroundTaskIdentifier = .invalid
+        bgTask = UIApplication.shared.beginBackgroundTask(withName: "widget-feed-refresh") {
+            UIApplication.shared.endBackgroundTask(bgTask)
+            bgTask = .invalid
+        }
+        defer {
+            if bgTask != .invalid {
+                UIApplication.shared.endBackgroundTask(bgTask)
+                bgTask = .invalid
+            }
+        }
+
         do {
             let items = try await APIService.shared.fetchInbox(userId: userId, limit: limit)
             WidgetFeedStore.saveFeed(items)

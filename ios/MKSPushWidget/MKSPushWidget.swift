@@ -34,7 +34,7 @@ nonisolated struct Provider: TimelineProvider {
         let entry = currentEntry()
         // The host app pushes fresh data via WidgetCenter.reloadTimelines() whenever the
         // feed changes; this periodic refresh is just a conservative fallback.
-        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: .now) ?? .now.addingTimeInterval(1800)
+        let nextUpdate = Calendar.current.date(byAdding: .minute, value: 5, to: .now) ?? .now.addingTimeInterval(300)
         completion(Timeline(entries: [entry], policy: .after(nextUpdate)))
     }
 
@@ -111,16 +111,54 @@ struct MKSPushWidgetView: View {
     }
 
     private func row(for item: InboxFeedItem) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(item.title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(Self.displayTitle(for: item))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                if !item.time.isEmpty {
+                    Text(Self.shortTime(item.time))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.45))
+                        .lineLimit(1)
+                        .fixedSize()
+                }
+            }
             Text(item.body)
                 .font(.system(size: 12))
                 .foregroundStyle(.white.opacity(0.6))
-                .lineLimit(1)
+                .lineLimit(2)
         }
+    }
+
+    /// Strips a leading "(Max) " tag some server payloads include in the title.
+    private static func displayTitle(for item: InboxFeedItem) -> String {
+        let prefix = "(Max) "
+        if item.title.hasPrefix(prefix) {
+            return String(item.title.dropFirst(prefix.count))
+        }
+        return item.title
+    }
+
+    /// Renders a server-provided time string as a short "HH:mm" label. Accepts either an
+    /// ISO-8601 timestamp or an already-short time string (returned as-is if unparsable).
+    private static func shortTime(_ raw: String) -> String {
+        if raw.count <= 5, raw.contains(":") {
+            return raw
+        }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        var date = formatter.date(from: raw)
+        if date == nil {
+            formatter.formatOptions = [.withInternetDateTime]
+            date = formatter.date(from: raw)
+        }
+        guard let date else { return raw }
+        let displayFormatter = DateFormatter()
+        displayFormatter.dateFormat = "HH:mm"
+        return displayFormatter.string(from: date)
     }
 
     private func emptyState(_ text: String) -> some View {

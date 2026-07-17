@@ -72,7 +72,20 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             BadgeSync.shared.applyBadge(badge)
         }
         // Keep the Home Screen widget's feed fresh whenever a push arrives in the foreground.
-        Task { await WidgetFeedManager.refresh(userId: UserStore.userId) }
+        // Wrapped in a background task so the refresh can finish even if the app is about
+        // to be backgrounded right after the banner is shown.
+        var bgTask: UIBackgroundTaskIdentifier = .invalid
+        bgTask = UIApplication.shared.beginBackgroundTask(withName: "widget-refresh-willpresent") {
+            UIApplication.shared.endBackgroundTask(bgTask)
+            bgTask = .invalid
+        }
+        Task {
+            await WidgetFeedManager.refresh(userId: UserStore.userId)
+            if bgTask != .invalid {
+                UIApplication.shared.endBackgroundTask(bgTask)
+                bgTask = .invalid
+            }
+        }
         completionHandler([.banner, .sound, .badge])
     }
 
@@ -81,8 +94,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         if let aps = userInfo["aps"] as? [String: Any], let badge = aps["badge"] as? Int {
             BadgeSync.shared.applyBadge(badge)
         }
+        var bgTask: UIBackgroundTaskIdentifier = .invalid
+        bgTask = UIApplication.shared.beginBackgroundTask(withName: "widget-refresh-remote-notification") {
+            UIApplication.shared.endBackgroundTask(bgTask)
+            bgTask = .invalid
+        }
         Task {
             let refreshed = await WidgetFeedManager.refresh(userId: UserStore.userId)
+            if bgTask != .invalid {
+                UIApplication.shared.endBackgroundTask(bgTask)
+                bgTask = .invalid
+            }
             completionHandler(refreshed ? .newData : .noData)
         }
     }
@@ -97,14 +119,16 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         }
 
         // Inline "Ответить" action from long-press — send text to server, never open the app.
+        // completionHandler() is deferred until the HTTP request actually finishes (see
+        // handleReplyAction), so the system keeps us alive for delivery instead of racing it.
         if response.actionIdentifier == ReplyManager.replyActionIdentifier,
            let textResponse = response as? UNTextInputNotificationResponse {
             handleReplyAction(
                 textResponse: textResponse,
                 userInfo: userInfo,
-                identifier: response.notification.request.identifier
+                identifier: response.notification.request.identifier,
+                completionHandler: completionHandler
             )
-            completionHandler()
             return
         }
 
@@ -113,17 +137,44 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         completionHandler()
     }
 
-    /// Sends the typed reply text to the server without opening the app.
-    private func handleReplyAction(textResponse: UNTextInputNotificationResponse, userInfo: [AnyHashable: Any], identifier: String) {
-        guard ReplyManager.isReplyable(userInfo: userInfo) else { return }
-        guard let userId = UserStore.userId, !userId.isEmpty else { return }
-        guard let chatId = ReplyManager.chatId(from: userInfo) else { return }
+    /// Sends the typed reply text to the server without opening the app. Wrapped in a
+    /// background task so iOS keeps the process alive long enough for the HTTP request
+    /// to finish; `completionHandler()` is only invoked once that request settles.
+    private func handleReplyAction(textResponse: UNTextInputNotificationResponse, userInfo: [AnyHashable: Any], identifier: String, completionHandler: @escaping () -> Void) {
+        guard ReplyManager.isReplyable(userInfo: userInfo) else {
+            completionHandler()
+            return
+        }
+        guard let userId = UserStore.userId, !userId.isEmpty else {
+            completionHandler()
+            return
+        }
+        guard let chatId = ReplyManager.chatId(from: userInfo) else {
+            completionHandler()
+            return
+        }
         let text = textResponse.userText
+
+        var bgTask: UIBackgroundTaskIdentifier = .invalid
+        bgTask = UIApplication.shared.beginBackgroundTask(withName: "quick-reply-send") {
+            // Expiration handler: the system is about to kill us — still signal completion
+            // so the notification UI doesn't hang, then close out the background task.
+            UIApplication.shared.endBackgroundTask(bgTask)
+            bgTask = .invalid
+            completionHandler()
+        }
+
         Task {
             let success = await ReplyManager.sendReply(userId: userId, chatId: chatId, text: text)
             if success {
                 UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [identifier])
             }
+            if bgTask != .invalid {
+                UIApplication.shared.endBackgroundTask(bgTask)
+                bgTask = .invalid
+            }
+            // Only signal completion to the system after the HTTP request has finished.
+            completionHandler()
         }
     }
 }
