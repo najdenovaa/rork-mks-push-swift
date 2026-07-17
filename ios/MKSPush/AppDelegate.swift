@@ -29,6 +29,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // Standard APNs registration
         PushManager.shared.registerIfAuthorized()
 
+        // Inline "Ответить" action on Max message pushes (lock screen / Notification Center / banner)
+        ReplyManager.registerCategories()
+
         // Also sync VoIP token if persisted from previous launch
         CallManager.shared.syncVoipToken()
 
@@ -71,7 +74,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         completionHandler([.banner, .sound, .badge])
     }
 
-    /// Handle notification tap.
+    /// Handle notification tap or inline action.
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
 
@@ -80,8 +83,34 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             BadgeSync.shared.applyBadge(badge)
         }
 
+        // Inline "Ответить" action from long-press — send text to server, never open the app.
+        if response.actionIdentifier == ReplyManager.replyActionIdentifier,
+           let textResponse = response as? UNTextInputNotificationResponse {
+            handleReplyAction(
+                textResponse: textResponse,
+                userInfo: userInfo,
+                identifier: response.notification.request.identifier
+            )
+            completionHandler()
+            return
+        }
+
         DeepLinkManager.shared.openAppFromPush(userInfo: userInfo)
         completionHandler()
+    }
+
+    /// Sends the typed reply text to the server without opening the app.
+    private func handleReplyAction(textResponse: UNTextInputNotificationResponse, userInfo: [AnyHashable: Any], identifier: String) {
+        guard ReplyManager.isReplyable(userInfo: userInfo) else { return }
+        guard let userId = UserStore.userId, !userId.isEmpty else { return }
+        guard let chatId = ReplyManager.chatId(from: userInfo) else { return }
+        let text = textResponse.userText
+        Task {
+            let success = await ReplyManager.sendReply(userId: userId, chatId: chatId, text: text)
+            if success {
+                UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [identifier])
+            }
+        }
     }
 }
 

@@ -78,6 +78,22 @@ nonisolated struct APIService: Sendable {
         return try Self.decoder.decode(TwoFAResponse.self, from: data)
     }
 
+    // MARK: - Reply (inline notification reply)
+
+    func sendReply(userId: String, chatId: String, text: String) async throws {
+        let url = baseURL.appendingPathComponent("api/reply/\(userId)")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 15
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["chat_id": chatId, "text": text])
+        let (data, response) = try await session.data(for: request)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw URLError(.badServerResponse, userInfo: ["body": body, "status": http.statusCode])
+        }
+    }
+
     // MARK: - Tokens
 
     func sendAPNsToken(userId: String, token: String) async throws {
