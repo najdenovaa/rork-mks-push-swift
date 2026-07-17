@@ -97,3 +97,30 @@ nonisolated struct CallAnsweredResponse: Codable, Sendable {
 nonisolated struct CallAnsweredAccept: Codable, Sendable {
     let ok: Bool
 }
+
+// MARK: - Widget inbox feed
+
+/// One row of the "recent Max messages" Home Screen widget feed.
+nonisolated struct InboxFeedItem: Codable, Sendable, Identifiable, Equatable {
+    let id: String
+    let chatId: String
+    let chatType: String?
+    let title: String
+    let body: String
+    let time: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case chatId = "chat_id"
+        case chatType = "chat_type"
+        case title
+        case body
+        case time
+    }
+}
+
+/// GET /api/inbox/{userId}?limit=5
+nonisolated struct InboxResponse: Codable, Sendable {
+    let ok: Bool?
+    let items: [InboxFeedItem]?
+}

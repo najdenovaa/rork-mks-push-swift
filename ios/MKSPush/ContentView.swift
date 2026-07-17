@@ -31,6 +31,7 @@ struct ContentView: View {
         .environmentObject(appState)
         .withBadgeSync()
         .withPushTokenSync()
+        .withWidgetFeedSync()
         .onReceive(NotificationCenter.default.publisher(for: .mkspushDeepLink)) { notif in
             if let url = notif.object as? URL {
                 DeepLinkManager.shared.handleDeepLink(url, appState: appState)

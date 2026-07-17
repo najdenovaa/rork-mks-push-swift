@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		XXF65CF8DBA130B2950174XX /* MKSPushWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = XXF9780575A7E14BC79549XX /* MKSPushWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		105FC58A2E9EAD3200EA8BCF /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,13 +25,45 @@
 			remoteGlobalIDString = 105FC5792E9EAD3100EA8BCF;
 			remoteInfo = MKSPush;
 		};
+		XXE9A658E561C422274956XX /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 105FC5722E9EAD3100EA8BCF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = XXA1CC659C1E29C2946260XX;
+			remoteInfo = MKSPushWidget;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		XX8618DA762832199DA68BXX /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				XXF65CF8DBA130B2950174XX /* MKSPushWidget.appex in Embed Foundation Extensions */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			name = "Embed Foundation Extensions";
+			dstPath = "";
+			dstSubfolderSpec = 13;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		105FC57A2E9EAD3100EA8BCF /* MKSPush.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MKSPush.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		105FC5892E9EAD3200EA8BCF /* MKSPushTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MKSPushTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		105FC5932E9EAD3200EA8BCF /* MKSPushUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MKSPushUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		XXF9780575A7E14BC79549XX /* MKSPushWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MKSPushWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		XX29F67988D4F68504C772XX /* Exceptions for "MKSPushWidget" folder in "MKSPushWidget" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = XXA1CC659C1E29C2946260XX /* MKSPushWidget */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		105FC57C2E9EAD3100EA8BCF /* MKSPush */ = {
@@ -44,6 +80,14 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MKSPushUITests;
 			sourceTree = "<group>";
+		};
+		XX0C22BEE5A5A3B4CEC3F9XX /* MKSPushWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MKSPushWidget;
+			sourceTree = "<group>";
+			exceptions = (
+				XX29F67988D4F68504C772XX /* Exceptions for "MKSPushWidget" folder in "MKSPushWidget" target */,
+			);
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
@@ -69,6 +113,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		XX6233D630C2C441CE1233XX /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -79,6 +130,7 @@
 				105FC58C2E9EAD3200EA8BCF /* MKSPushTests */,
 				105FC5962E9EAD3200EA8BCF /* MKSPushUITests */,
 				105FC57B2E9EAD3100EA8BCF /* Products */,
+				XX0C22BEE5A5A3B4CEC3F9XX /* MKSPushWidget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -88,6 +140,7 @@
 				105FC57A2E9EAD3100EA8BCF /* MKSPush.app */,
 				105FC5892E9EAD3200EA8BCF /* MKSPushTests.xctest */,
 				105FC5932E9EAD3200EA8BCF /* MKSPushUITests.xctest */,
+				XXF9780575A7E14BC79549XX /* MKSPushWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -102,10 +155,12 @@
 				105FC5762E9EAD3100EA8BCF /* Sources */,
 				105FC5772E9EAD3100EA8BCF /* Frameworks */,
 				105FC5782E9EAD3100EA8BCF /* Resources */,
+				XX8618DA762832199DA68BXX /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				XX38D245DE6256A1EE1195XX /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				105FC57C2E9EAD3100EA8BCF /* MKSPush */,
@@ -163,6 +218,26 @@
 			productReference = 105FC5932E9EAD3200EA8BCF /* MKSPushUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		XXA1CC659C1E29C2946260XX /* MKSPushWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = XX9399CA28573669B71372XX /* Build configuration list for PBXNativeTarget "MKSPushWidget" */;
+			buildPhases = (
+				XX85C0E117F03CA55C68C2XX /* Sources */,
+				XX6233D630C2C441CE1233XX /* Frameworks */,
+				XX524DF867E6C708EBE538XX /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MKSPushWidget;
+			productName = MKSPushWidget;
+			productReference = XXF9780575A7E14BC79549XX /* MKSPushWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+			fileSystemSynchronizedGroups = (
+				XX0C22BEE5A5A3B4CEC3F9XX /* MKSPushWidget */,
+			);
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -203,6 +278,7 @@
 				105FC5792E9EAD3100EA8BCF /* MKSPush */,
 				105FC5882E9EAD3200EA8BCF /* MKSPushTests */,
 				105FC5922E9EAD3200EA8BCF /* MKSPushUITests */,
+				XXA1CC659C1E29C2946260XX /* MKSPushWidget */,
 			);
 		};
 /* End PBXProject section */
@@ -223,6 +299,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		105FC5912E9EAD3200EA8BCF /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		XX524DF867E6C708EBE538XX /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -253,6 +336,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		XX85C0E117F03CA55C68C2XX /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -265,6 +355,11 @@
 			isa = PBXTargetDependency;
 			target = 105FC5792E9EAD3100EA8BCF /* MKSPush */;
 			targetProxy = 105FC5942E9EAD3200EA8BCF /* PBXContainerItemProxy */;
+		};
+		XX38D245DE6256A1EE1195XX /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = XXA1CC659C1E29C2946260XX /* MKSPushWidget */;
+			targetProxy = XXE9A658E561C422274956XX /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -401,7 +496,7 @@
 				ENABLE_PREVIEWS = YES;
 				CODE_SIGN_ENTITLEMENTS = MKSPush/MKSPush.entitlements;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = MKSPush-Info.plist;
+				INFOPLIST_FILE = "MKSPush-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -448,7 +543,7 @@
 				ENABLE_PREVIEWS = YES;
 				CODE_SIGN_ENTITLEMENTS = MKSPush/MKSPush.entitlements;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = MKSPush-Info.plist;
+				INFOPLIST_FILE = "MKSPush-Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -494,7 +589,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "app.rork.opwekymy06hemai96obt4.tests";
+				PRODUCT_BUNDLE_IDENTIFIER = app.rork.opwekymy06hemai96obt4.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -516,7 +611,7 @@
 				GENERATE_INFOPLIST_FILE = NO;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "app.rork.opwekymy06hemai96obt4.tests";
+				PRODUCT_BUNDLE_IDENTIFIER = app.rork.opwekymy06hemai96obt4.tests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -536,7 +631,7 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "app.rork.opwekymy06hemai96obt4.uitests";
+				PRODUCT_BUNDLE_IDENTIFIER = app.rork.opwekymy06hemai96obt4.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -556,7 +651,7 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				MARKETING_VERSION = 1.0.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "app.rork.opwekymy06hemai96obt4.uitests";
+				PRODUCT_BUNDLE_IDENTIFIER = app.rork.opwekymy06hemai96obt4.uitests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -567,6 +662,50 @@
 				TEST_TARGET_NAME = MKSPush;
 			};
 			name = Release;
+		};
+		XX522424DD5F0B32A99528XX /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_BUNDLE_IDENTIFIER = ru.mskpush.app.mkspushwidget;
+				SDKROOT = iphoneos;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MKSPushWidget/Info.plist;
+				CODE_SIGN_ENTITLEMENTS = MKSPushWidget/MKSPushWidget.entitlements;
+				SWIFT_VERSION = 5.0;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 1.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
+			};
+			name = Release;
+		};
+		XXEED658A4A36AF25C99F8XX /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_BUNDLE_IDENTIFIER = ru.mskpush.app.mkspushwidget;
+				SDKROOT = iphoneos;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MKSPushWidget/Info.plist;
+				CODE_SIGN_ENTITLEMENTS = MKSPushWidget/MKSPushWidget.entitlements;
+				SWIFT_VERSION = 5.0;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 1.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
+			};
+			name = Debug;
 		};
 /* End XCBuildConfiguration section */
 
@@ -603,6 +742,15 @@
 			buildConfigurations = (
 				105FC5A42E9EAD3200EA8BCF /* Debug */,
 				105FC5A52E9EAD3200EA8BCF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		XX9399CA28573669B71372XX /* Build configuration list for PBXNativeTarget "MKSPushWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				XXEED658A4A36AF25C99F8XX /* Debug */,
+				XX522424DD5F0B32A99528XX /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

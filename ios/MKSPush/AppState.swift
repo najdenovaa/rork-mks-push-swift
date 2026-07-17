@@ -127,12 +127,22 @@ final class AppState: ObservableObject {
     // MARK: - Parse status response
 
     private func applyStatus(_ resp: StatusResponse) {
+        let wasActive = status == .active
         status = ConnectionStatus(rawValue: resp.status ?? "unknown") ?? .unknown
         if let p = resp.pairing {
             pairing = PairingMode(rawValue: p) ?? .unknown
         }
         pairingHint = resp.hint
         qrPng = resp.qrPng
+
+        // Keep the Home Screen widget's "recent messages" feed in sync right after connecting.
+        if status == .active {
+            if !wasActive, let id = userId {
+                Task { await WidgetFeedManager.refresh(userId: id) }
+            }
+        } else if wasActive {
+            WidgetFeedStore.markDisconnected()
+        }
     }
 
     /// Applies a status response AND persists the raw status string to disk so the next
@@ -209,6 +219,7 @@ final class AppState: ObservableObject {
         pairing = .unknown
         pairingHint = nil
         route = .welcome
+        WidgetFeedStore.markDisconnected()
     }
 
     /// Called by deep link: mkspush://pair?user_id=XXX

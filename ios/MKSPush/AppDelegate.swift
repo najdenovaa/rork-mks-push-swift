@@ -71,7 +71,20 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         if let aps = userInfo["aps"] as? [String: Any], let badge = aps["badge"] as? Int {
             BadgeSync.shared.applyBadge(badge)
         }
+        // Keep the Home Screen widget's feed fresh whenever a push arrives in the foreground.
+        Task { await WidgetFeedManager.refresh(userId: UserStore.userId) }
         completionHandler([.banner, .sound, .badge])
+    }
+
+    /// Silent/background push delivery — refresh the widget feed even if the app never comes to foreground.
+    func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        if let aps = userInfo["aps"] as? [String: Any], let badge = aps["badge"] as? Int {
+            BadgeSync.shared.applyBadge(badge)
+        }
+        Task {
+            let refreshed = await WidgetFeedManager.refresh(userId: UserStore.userId)
+            completionHandler(refreshed ? .newData : .noData)
+        }
     }
 
     /// Handle notification tap or inline action.
@@ -95,6 +108,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             return
         }
 
+        Task { await WidgetFeedManager.refresh(userId: UserStore.userId) }
         DeepLinkManager.shared.openAppFromPush(userInfo: userInfo)
         completionHandler()
     }
