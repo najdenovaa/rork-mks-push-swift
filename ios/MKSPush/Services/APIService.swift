@@ -187,6 +187,11 @@ nonisolated struct APIService: Sendable {
 
     /// GET /api/inbox/{userId}?limit={limit} — recent Max messages for the Home Screen widget.
     func fetchInbox(userId: String, limit: Int) async throws -> [InboxFeedItem] {
+        try await fetchInboxResponse(userId: userId, limit: limit).items ?? []
+    }
+
+    /// Same endpoint as `fetchInbox`, but returns the full response including `unread_count`.
+    func fetchInboxResponse(userId: String, limit: Int) async throws -> InboxResponse {
         let url = baseURL.appendingPathComponent("api/inbox/\(userId)")
         guard var comps = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             throw URLError(.badURL)
@@ -197,8 +202,7 @@ nonisolated struct APIService: Sendable {
         if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
             throw URLError(.badServerResponse)
         }
-        let resp = try Self.decoder.decode(InboxResponse.self, from: data)
-        return resp.items ?? []
+        return try Self.decoder.decode(InboxResponse.self, from: data)
     }
 
     // MARK: - Events

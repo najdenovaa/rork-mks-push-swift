@@ -12,37 +12,76 @@ import SwiftUI
 import UIKit
 import WidgetKit
 
+/// Builds deep links that open **Max** (never the MKS Push host app) directly to a chat.
+/// Deliberately duplicated (minimal) on the widget extension side in SharedFeed.swift,
+/// since the extension can't import this host-app target. Keep both in sync.
+enum WidgetOpenURL {
+    static func forItem(_ item: InboxFeedItem) -> URL {
+        if !item.chatId.isEmpty,
+           let u = URL(string: "max://chat?chatId=\(item.chatId)") {
+            return u
+        }
+        if !item.chatId.isEmpty,
+           let u = URL(string: "https://web.max.ru/?chatId=\(item.chatId)") {
+            return u
+        }
+        return fallback()
+    }
+
+    static func fallback() -> URL {
+        URL(string: "max://")!
+    }
+}
+
 /// Reads/writes the widget feed through the App Group so the widget extension
 /// (a separate process) can display it without making network calls of its own.
 enum WidgetFeedStore {
     static let appGroupId = "group.ru.mskpush.app"
     private static let feedKey = "widget_inbox_feed"
     private static let connectedKey = "widget_is_connected"
-    private static let widgetKind = "MKSPushWidget"
+    private static let unreadCountKey = "widget_unread_count"
+    private static let lastOpenURLKey = "widget_last_open_url"
+
+    /// All three Home Screen widget kinds share this feed; every save reloads all of them.
+    private static let widgetKinds = ["MKSPushInboxWidget", "MKSPushCompactWidget", "MKSPushUnreadWidget"]
 
     private static var defaults: UserDefaults? {
         UserDefaults(suiteName: appGroupId)
     }
 
-    static func saveFeed(_ items: [InboxFeedItem]) {
+    static func saveFeed(_ items: [InboxFeedItem], unreadCount: Int) {
         guard let defaults else { return }
         if let data = try? JSONEncoder().encode(items) {
             defaults.set(data, forKey: feedKey)
         }
+        defaults.set(unreadCount, forKey: unreadCountKey)
+        if let first = items.first {
+            defaults.set(WidgetOpenURL.forItem(first).absoluteString, forKey: lastOpenURLKey)
+        } else {
+            defaults.removeObject(forKey: lastOpenURLKey)
+        }
         defaults.set(true, forKey: connectedKey)
-        WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)
+        reloadAllTimelines()
     }
 
-    /// Clears the feed and flips the widget into its "not connected" empty state.
+    /// Clears the feed and flips the widgets into their "not connected" empty state.
     static func markDisconnected() {
         guard let defaults else { return }
         defaults.set(false, forKey: connectedKey)
         defaults.removeObject(forKey: feedKey)
-        WidgetCenter.shared.reloadTimelines(ofKind: widgetKind)
+        defaults.removeObject(forKey: unreadCountKey)
+        defaults.removeObject(forKey: lastOpenURLKey)
+        reloadAllTimelines()
+    }
+
+    private static func reloadAllTimelines() {
+        for kind in widgetKinds {
+            WidgetCenter.shared.reloadTimelines(ofKind: kind)
+        }
     }
 }
 
-/// Fetches the recent-messages feed from the server and publishes it to the widget's
+/// Fetches the recent-messages feed from the server and publishes it to the widgets'
 /// shared storage. Safe to call frequently — always no-ops quietly on failure.
 enum WidgetFeedManager {
     private static let limit = 5
@@ -69,8 +108,8 @@ enum WidgetFeedManager {
         }
 
         do {
-            let items = try await APIService.shared.fetchInbox(userId: userId, limit: limit)
-            WidgetFeedStore.saveFeed(items)
+            let response = try await APIService.shared.fetchInboxResponse(userId: userId, limit: limit)
+            WidgetFeedStore.saveFeed(response.items ?? [], unreadCount: response.unreadCount ?? 0)
             return true
         } catch {
             print("[WidgetFeedManager] refresh failed: \(error.localizedDescription)")

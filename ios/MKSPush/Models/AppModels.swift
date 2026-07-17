@@ -123,4 +123,11 @@ nonisolated struct InboxFeedItem: Codable, Sendable, Identifiable, Equatable {
 nonisolated struct InboxResponse: Codable, Sendable {
     let ok: Bool?
     let items: [InboxFeedItem]?
+    let unreadCount: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case ok
+        case items
+        case unreadCount = "unread_count"
+    }
 }
