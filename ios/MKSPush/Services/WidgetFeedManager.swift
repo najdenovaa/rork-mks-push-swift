@@ -68,7 +68,7 @@ enum WidgetFeedManager {
 /// Attach to root view to keep the widget feed fresh whenever the app becomes active.
 struct WidgetFeedSyncViewModifier: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
-    @EnvironmentObject private var appState: AppState
+    @ObservedObject var appState: AppState
 
     func body(content: Content) -> some View {
         content
@@ -84,7 +84,7 @@ struct WidgetFeedSyncViewModifier: ViewModifier {
 }
 
 extension View {
-    func withWidgetFeedSync() -> some View {
-        modifier(WidgetFeedSyncViewModifier())
+    func withWidgetFeedSync(appState: AppState) -> some View {
+        modifier(WidgetFeedSyncViewModifier(appState: appState))
     }
 }
