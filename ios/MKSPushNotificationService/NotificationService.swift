@@ -131,11 +131,23 @@ final class NotificationService: UNNotificationServiceExtension {
             attachments: nil
         )
 
+        // Workaround: some iOS versions ignore the sender passed via the
+        // initializer when rendering the avatar — set it explicitly too.
+        intent.setValue(sender, forKey: "sender")
+
         let interaction = INInteraction(intent: intent, response: nil)
         interaction.direction = .incoming
-        interaction.donate()
+        interaction.donate { error in
+            if let error {
+                NSLog("[MKSPush NSE] interaction donate failed: %@", error.localizedDescription)
+            }
+        }
 
-        if let updated = try? content.updating(from: intent) {
+        if let updated = try? content.updating(from: intent) as? UNMutableNotificationContent {
+            // Re-apply media attachments — updating(from:) can drop them.
+            if !content.attachments.isEmpty {
+                updated.attachments = content.attachments
+            }
             return updated
         }
         return content
@@ -147,6 +159,7 @@ final class NotificationService: UNNotificationServiceExtension {
     private static func downloadData(from url: URL, completion: @escaping (Data?) -> Void) {
         var request = URLRequest(url: url)
         request.timeoutInterval = 20
+        request.setValue("image/*", forHTTPHeaderField: "Accept")
         URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data, error == nil else {
                 completion(nil)
