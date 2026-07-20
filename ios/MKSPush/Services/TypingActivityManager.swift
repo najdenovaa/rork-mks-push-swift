@@ -4,10 +4,13 @@
 //
 //  Drives the "собеседник печатает…" Live Activity in the Dynamic Island.
 //  One typing activity at a time, keyed by chat_id:
-//  - start   → request a new activity (ends any previous one first)
+//  - start   → reuse a live remote-started activity if one already exists,
+//              otherwise request a new one (ending any stray activity first)
 //  - refresh → extend the stale date / update the sender name
 //  - end     → dismiss immediately
-//  Also reports the ActivityKit push-to-start token (iOS 17.2+) to the server.
+//  Also reports the ActivityKit push-to-start token (iOS 17.2+) and each
+//  activity's own push token to the server, so the server can update/end the
+//  activity remotely without relying on the app staying alive.
 //
 
 import ActivityKit
@@ -20,6 +23,7 @@ enum TypingActivityManager {
     private static var currentChatId: String?
     private static var lastStartAt: Date = .distantPast
     private static var pushToStartTask: Task<Void, Never>?
+    private static var activityTokenTasks: [String: Task<Void, Never>] = [:]
 
     /// How long the activity stays fresh without a refresh push.
     private static let staleInterval: TimeInterval = 30
@@ -55,6 +59,17 @@ enum TypingActivityManager {
             return
         }
 
+        // A remote push-to-start (or another launch path) may have already created
+        // this chat's activity — reuse it instead of ending/recreating.
+        if let existing = Activity<TypingActivityAttributes>.activities.first(where: { $0.attributes.chatId == chatId }) {
+            await existing.update(makeContent(senderName: senderName))
+            currentActivity = existing
+            currentChatId = chatId
+            lastStartAt = Date()
+            observeActivityPushToken(for: existing)
+            return
+        }
+
         // Different chat (or stray activities) — end everything first.
         await endAllActivities()
 
@@ -63,11 +78,12 @@ enum TypingActivityManager {
             let activity = try Activity.request(
                 attributes: attributes,
                 content: makeContent(senderName: senderName),
-                pushType: nil
+                pushType: .token
             )
             currentActivity = activity
             currentChatId = chatId
             lastStartAt = Date()
+            observeActivityPushToken(for: activity)
         } catch {
             print("[TypingActivityManager] start failed: \(error.localizedDescription)")
         }
@@ -77,7 +93,19 @@ enum TypingActivityManager {
         if let activity = currentActivity, currentChatId == chatId {
             let name = senderName ?? activity.content.state.senderName
             await activity.update(makeContent(senderName: name))
-        } else if let senderName, !senderName.isEmpty {
+            lastStartAt = Date()
+            return
+        }
+        if let existing = Activity<TypingActivityAttributes>.activities.first(where: { $0.attributes.chatId == chatId }) {
+            let name = senderName ?? existing.content.state.senderName
+            await existing.update(makeContent(senderName: name))
+            currentActivity = existing
+            currentChatId = chatId
+            lastStartAt = Date()
+            observeActivityPushToken(for: existing)
+            return
+        }
+        if let senderName, !senderName.isEmpty {
             // Missed the start push — treat this refresh as a start.
             await start(senderName: senderName, chatId: chatId, senderId: senderId)
         }
@@ -87,6 +115,8 @@ enum TypingActivityManager {
         for activity in Activity<TypingActivityAttributes>.activities where activity.attributes.chatId == chatId {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
+        activityTokenTasks[chatId]?.cancel()
+        activityTokenTasks[chatId] = nil
         if currentChatId == chatId {
             currentActivity = nil
             currentChatId = nil
@@ -97,6 +127,8 @@ enum TypingActivityManager {
         for activity in Activity<TypingActivityAttributes>.activities {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
+        for task in activityTokenTasks.values { task.cancel() }
+        activityTokenTasks.removeAll()
         currentActivity = nil
         currentChatId = nil
     }
@@ -123,9 +155,40 @@ enum TypingActivityManager {
                     try await APIService.shared.sendTypingActivityToken(userId: userId, token: token)
                     print("[TypingActivityManager] push-to-start token sent")
                 } catch {
-                    print("[TypingActivityManager] token send failed: \(error.localizedDescription)")
+                    print("[TypingActivityManager] push-to-start token send failed: \(error.localizedDescription)")
                 }
             }
+        }
+    }
+
+    /// Observes a single activity's own push token so the server can update/end it
+    /// remotely (e.g. when the typing stops but the app never receives another push).
+    private static func observeActivityPushToken(for activity: Activity<TypingActivityAttributes>) {
+        let chatId = activity.attributes.chatId
+        activityTokenTasks[chatId]?.cancel()
+        activityTokenTasks[chatId] = Task {
+            for await tokenData in activity.pushTokenUpdates {
+                let token = tokenData.map { String(format: "%02x", $0) }.joined()
+                guard let userId = UserStore.userId, !userId.isEmpty else { continue }
+                do {
+                    try await APIService.shared.sendTypingLiveToken(userId: userId, chatId: chatId, token: token)
+                    print("[TypingActivityManager] activity push token sent for chat \(chatId)")
+                } catch {
+                    print("[TypingActivityManager] activity push token send failed: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    /// Re-reports push tokens for any activities that are already running when the
+    /// app (re)launches, so the server always has a fresh token to end/update them.
+    static func syncExistingActivityPushTokens() {
+        for activity in Activity<TypingActivityAttributes>.activities {
+            if currentChatId == nil {
+                currentActivity = activity
+                currentChatId = activity.attributes.chatId
+            }
+            observeActivityPushToken(for: activity)
         }
     }
 }

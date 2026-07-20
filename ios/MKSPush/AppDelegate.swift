@@ -32,9 +32,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // Inline "Ответить" action on Max message pushes (lock screen / Notification Center / banner)
         ReplyManager.registerCategories()
 
-        // Live Activity push-to-start token for the typing indicator (iOS 17.2+)
+        // Live Activity push-to-start token for the typing indicator (iOS 17.2+),
+        // plus re-sync tokens for any activity that's still running from a previous launch.
         if #available(iOS 16.2, *) {
             TypingActivityManager.observePushToStartToken()
+            TypingActivityManager.syncExistingActivityPushTokens()
         }
 
         // Also sync VoIP token if persisted from previous launch

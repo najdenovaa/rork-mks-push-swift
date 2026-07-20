@@ -4,13 +4,13 @@
 //
 //  "Собеседник печатает…" Live Activity:
 //  - Dynamic Island: compact pill only (icon + name on the left, pulsing pencil
-//    on the right). The island may grow horizontally but never in height —
-//    the expanded region is a single slim row.
-//  - Lock Screen (devices without Dynamic Island): compact strip, same layout.
+//    on the right). Lock Screen and the expanded region use the exact same
+//    slim row so a push-to-start launch never flashes a tall banner.
 //
 
 import ActivityKit
 import SwiftUI
+import UIKit
 import WidgetKit
 
 private let accentGreen = Color(red: 34 / 255, green: 197 / 255, blue: 94 / 255)
@@ -19,16 +19,19 @@ private let backgroundGreen = Color(red: 7 / 255, green: 26 / 255, blue: 16 / 25
 struct TypingActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: TypingActivityAttributes.self) { context in
-            // Lock Screen / banner presentation — compact strip.
-            TypingLiveActivityView(senderName: context.state.senderName)
+            // Lock Screen / banner presentation — same slim row as compact/expanded.
+            TypingCompactPillRow(senderName: context.state.senderName)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
                 .activityBackgroundTint(backgroundGreen.opacity(0.92))
                 .activitySystemActionForegroundColor(accentGreen)
         } dynamicIsland: { context in
             DynamicIsland {
-                // Intentionally a single slim center row — nothing that grows
-                // the island vertically when long-pressed.
+                // Deliberately the same slim row as compact — nothing that grows
+                // the island vertically when it first flashes expanded.
                 DynamicIslandExpandedRegion(.center) {
-                    TypingRowView(senderName: context.state.senderName)
+                    TypingCompactPillRow(senderName: context.state.senderName)
+                        .padding(.horizontal, 8)
                 }
             } compactLeading: {
                 HStack(spacing: 6) {
@@ -49,16 +52,47 @@ struct TypingActivityWidget: Widget {
     }
 }
 
-/// App icon (or sender initials fallback) shown on the left of the pill.
+/// Single slim row shared by Lock Screen, expanded, and (visually) compact presentations.
+struct TypingCompactPillRow: View {
+    let senderName: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            TypingIconView(size: 20)
+            Text(senderName)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Spacer(minLength: 4)
+            TypingPencilIcon()
+        }
+    }
+}
+
+/// App icon (falls back to an "M" monogram if the bundled asset is missing).
 struct TypingIconView: View {
     let size: CGFloat
 
     var body: some View {
-        Image("WidgetAppIcon")
-            .resizable()
-            .aspectRatio(contentMode: .fill)
-            .frame(width: size, height: size)
-            .clipShape(.rect(cornerRadius: size * 0.28))
+        Group {
+            if let uiImage = UIImage(named: "WidgetAppIcon", in: .main, compatibleWith: nil) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .interpolation(.high)
+                    .antialiased(true)
+                    .aspectRatio(contentMode: .fit)
+            } else {
+                RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+                    .fill(accentGreen.opacity(0.22))
+                    .overlay {
+                        Text("M")
+                            .font(.system(size: size * 0.42, weight: .bold, design: .rounded))
+                            .foregroundStyle(accentGreen)
+                    }
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(.rect(cornerRadius: size * 0.28))
     }
 }
 
@@ -68,52 +102,5 @@ struct TypingPencilIcon: View {
         Image(systemName: "pencil.line")
             .symbolEffect(.pulse, options: .repeating)
             .foregroundStyle(.secondary)
-    }
-}
-
-/// Single slim row reused by the expanded center region: name + pencil.
-struct TypingRowView: View {
-    let senderName: String
-
-    var body: some View {
-        HStack(spacing: 8) {
-            TypingIconView(size: 20)
-            Text(senderName)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
-                .truncationMode(.tail)
-            Text("печатает…")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            Spacer(minLength: 6)
-            TypingPencilIcon()
-        }
-    }
-}
-
-/// Lock Screen presentation — a compact strip mirroring the pill layout.
-struct TypingLiveActivityView: View {
-    let senderName: String
-
-    var body: some View {
-        HStack(spacing: 10) {
-            TypingIconView(size: 24)
-            Text(senderName)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .truncationMode(.tail)
-            Text("печатает…")
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.6))
-                .lineLimit(1)
-            Spacer(minLength: 8)
-            Image(systemName: "pencil.line")
-                .symbolEffect(.pulse, options: .repeating)
-                .foregroundStyle(.white.opacity(0.7))
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
     }
 }
