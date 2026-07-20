@@ -31,7 +31,7 @@ enum ReplyManager {
         let category = UNNotificationCategory(
             identifier: categoryIdentifier,
             actions: [replyAction],
-            intentIdentifiers: [],
+            intentIdentifiers: ["INSendMessageIntent"],
             options: []
         )
         UNUserNotificationCenter.current().setNotificationCategories([category])

@@ -3,12 +3,14 @@
 //  MKSPushLiveActivity
 //
 //  "Собеседник печатает…" Live Activity:
-//  - Dynamic Island: compact pill only (icon + name on the left, pulsing pencil
-//    on the right). Lock Screen and the expanded region use the exact same
-//    slim row so a push-to-start launch never flashes a tall banner.
+//  - Dynamic Island compact: app icon on the left + 3 animated green dots on
+//    the right. No sender name anywhere — just icon + dots.
+//  - Lock Screen / expanded use the same slim icon + dots row so a
+//    push-to-start launch never flashes a tall banner.
 //
 
 import ActivityKit
+import Combine
 import SwiftUI
 import UIKit
 import WidgetKit
@@ -18,53 +20,40 @@ private let backgroundGreen = Color(red: 7 / 255, green: 26 / 255, blue: 16 / 25
 
 struct TypingActivityWidget: Widget {
     var body: some WidgetConfiguration {
-        ActivityConfiguration(for: TypingActivityAttributes.self) { context in
-            // Lock Screen / banner presentation — same slim row as compact/expanded.
-            TypingCompactPillRow(senderName: context.state.senderName)
+        ActivityConfiguration(for: TypingActivityAttributes.self) { _ in
+            // Lock Screen / banner presentation — same slim row as expanded.
+            TypingPillRow()
                 .padding(.horizontal, 12)
                 .padding(.vertical, 4)
                 .activityBackgroundTint(backgroundGreen.opacity(0.92))
                 .activitySystemActionForegroundColor(accentGreen)
-        } dynamicIsland: { context in
+        } dynamicIsland: { _ in
             DynamicIsland {
                 // Deliberately the same slim row as compact — nothing that grows
                 // the island vertically when it first flashes expanded.
                 DynamicIslandExpandedRegion(.center) {
-                    TypingCompactPillRow(senderName: context.state.senderName)
+                    TypingPillRow()
                         .padding(.horizontal, 8)
                 }
             } compactLeading: {
-                HStack(spacing: 6) {
-                    TypingIconView(size: 20)
-                    Text(context.state.senderName)
-                        .font(.subheadline.weight(.semibold))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
+                TypingIconView(size: 20)
             } compactTrailing: {
-                TypingPencilIcon()
+                TypingDotsView()
             } minimal: {
-                Image(systemName: "pencil.line")
-                    .foregroundStyle(accentGreen)
+                TypingDotsView()
             }
             .keylineTint(accentGreen)
         }
     }
 }
 
-/// Single slim row shared by Lock Screen, expanded, and (visually) compact presentations.
-struct TypingCompactPillRow: View {
-    let senderName: String
-
+/// Single slim row shared by Lock Screen and the expanded island region.
+struct TypingPillRow: View {
     var body: some View {
-        HStack(spacing: 6) {
+        HStack {
             TypingIconView(size: 20)
-            Text(senderName)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
-                .truncationMode(.tail)
             Spacer(minLength: 4)
-            TypingPencilIcon()
+            TypingDotsView()
         }
     }
 }
@@ -96,11 +85,24 @@ struct TypingIconView: View {
     }
 }
 
-/// Pulsing "pencil writes" icon on the right of the pill.
-struct TypingPencilIcon: View {
+/// Three green "typing" dots cycling via Timer (TimelineView does not animate
+/// inside Live Activities).
+struct TypingDotsView: View {
+    @State private var phase = 0
+    private let timer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
+
     var body: some View {
-        Image(systemName: "pencil.line")
-            .symbolEffect(.pulse, options: .repeating)
-            .foregroundStyle(.secondary)
+        HStack(spacing: 4) {
+            ForEach(0..<3, id: \.self) { i in
+                Circle()
+                    .fill(accentGreen)
+                    .frame(width: 6, height: 6)
+                    .opacity(i == phase ? 1.0 : 0.35)
+                    .offset(y: i == phase ? -2 : 0)
+            }
+        }
+        .onReceive(timer) { _ in
+            phase = (phase + 1) % 3
+        }
     }
 }

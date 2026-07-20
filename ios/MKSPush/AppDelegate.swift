@@ -36,6 +36,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // plus re-sync tokens for any activity that's still running from a previous launch.
         if #available(iOS 16.2, *) {
             TypingActivityManager.observePushToStartToken()
+            TypingActivityManager.observeActivityUpdates()
             TypingActivityManager.syncExistingActivityPushTokens()
         }
 

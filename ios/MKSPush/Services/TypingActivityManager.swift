@@ -23,6 +23,7 @@ enum TypingActivityManager {
     private static var currentChatId: String?
     private static var lastStartAt: Date = .distantPast
     private static var pushToStartTask: Task<Void, Never>?
+    private static var activityUpdatesTask: Task<Void, Never>?
     private static var activityTokenTasks: [String: Task<Void, Never>] = [:]
 
     /// How long the activity stays fresh without a refresh push.
@@ -30,6 +31,9 @@ enum TypingActivityManager {
 
     /// Routes a typing push payload to start/refresh/end.
     static func handle(payload: [AnyHashable: Any]) async {
+        // A remote push-to-start may have created an activity while the app was
+        // dead — make sure its live token is (re)reported before we act on it.
+        syncExistingActivityPushTokens()
         guard let event = TypingPush.parse(payload) else { return }
         switch event.kind {
         case .start:
@@ -111,16 +115,16 @@ enum TypingActivityManager {
         }
     }
 
+    /// Ends ALL typing activities — a message arriving means typing stopped, and
+    /// stray activities from other chats should never linger on the island.
     static func end(chatId: String) async {
-        for activity in Activity<TypingActivityAttributes>.activities where activity.attributes.chatId == chatId {
+        for activity in Activity<TypingActivityAttributes>.activities {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
-        activityTokenTasks[chatId]?.cancel()
-        activityTokenTasks[chatId] = nil
-        if currentChatId == chatId {
-            currentActivity = nil
-            currentChatId = nil
-        }
+        for task in activityTokenTasks.values { task.cancel() }
+        activityTokenTasks.removeAll()
+        currentActivity = nil
+        currentChatId = nil
     }
 
     private static func endAllActivities() async {
@@ -157,6 +161,19 @@ enum TypingActivityManager {
                 } catch {
                     print("[TypingActivityManager] push-to-start token send failed: \(error.localizedDescription)")
                 }
+            }
+        }
+    }
+
+    /// Observes activities created outside our own `start()` path (remote
+    /// push-to-start while the app was killed) and reports their live push
+    /// tokens, so the server can end them — otherwise the island flashes and
+    /// never dismisses.
+    static func observeActivityUpdates() {
+        activityUpdatesTask?.cancel()
+        activityUpdatesTask = Task {
+            for await activity in Activity<TypingActivityAttributes>.activityUpdates {
+                observeActivityPushToken(for: activity)
             }
         }
     }
