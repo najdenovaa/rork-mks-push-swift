@@ -71,6 +71,7 @@ enum TypingActivityManager {
             currentChatId = chatId
             lastStartAt = Date()
             observeActivityPushToken(for: existing)
+            await sendCurrentPushTokenIfAvailable(for: existing)
             return
         }
 
@@ -88,6 +89,7 @@ enum TypingActivityManager {
             currentChatId = chatId
             lastStartAt = Date()
             observeActivityPushToken(for: activity)
+            await sendCurrentPushTokenIfAvailable(for: activity)
         } catch {
             print("[TypingActivityManager] start failed: \(error.localizedDescription)")
         }
@@ -206,6 +208,23 @@ enum TypingActivityManager {
                 currentChatId = activity.attributes.chatId
             }
             observeActivityPushToken(for: activity)
+            Task { await sendCurrentPushTokenIfAvailable(for: activity) }
+        }
+    }
+
+    /// If the activity already has a push token (available synchronously), sends it
+    /// to the server right away — awaited, so background-task callers can keep the
+    /// process alive until the HTTP request actually finishes. The async
+    /// `pushTokenUpdates` observer still covers tokens that arrive later.
+    private static func sendCurrentPushTokenIfAvailable(for activity: Activity<TypingActivityAttributes>) async {
+        guard let tokenData = activity.pushToken else { return }
+        guard let userId = UserStore.userId, !userId.isEmpty else { return }
+        let token = tokenData.map { String(format: "%02x", $0) }.joined()
+        do {
+            try await APIService.shared.sendTypingLiveToken(userId: userId, chatId: activity.attributes.chatId, token: token)
+            print("[TypingActivityManager] current activity push token sent for chat \(activity.attributes.chatId)")
+        } catch {
+            print("[TypingActivityManager] current activity push token send failed: \(error.localizedDescription)")
         }
     }
 }

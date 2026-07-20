@@ -63,8 +63,8 @@ struct TypingIconView: View {
 
     var body: some View {
         Group {
-            if let uiImage = UIImage(named: "WidgetAppIcon", in: .main, compatibleWith: nil) {
-                Image(uiImage: uiImage)
+            if UIImage(named: "WidgetAppIcon") != nil {
+                Image("WidgetAppIcon")
                     .resizable()
                     .interpolation(.high)
                     .antialiased(true)

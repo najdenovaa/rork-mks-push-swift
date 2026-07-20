@@ -122,11 +122,16 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             }
             Task {
                 await TypingActivityManager.handle(payload: userInfo)
+                // Grace period: the activity's push token often arrives via the async
+                // pushTokenUpdates stream a moment after start — keep the process alive
+                // so the token HTTP send completes before iOS suspends us. Otherwise the
+                // server never gets a live token and can't end the island remotely.
+                try? await Task.sleep(for: .seconds(3))
                 if typingTask != .invalid {
                     UIApplication.shared.endBackgroundTask(typingTask)
                     typingTask = .invalid
                 }
-                completionHandler(.noData)
+                completionHandler(.newData)
             }
             return
         }
