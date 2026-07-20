@@ -10,7 +10,6 @@
 //
 
 import ActivityKit
-import Combine
 import SwiftUI
 import UIKit
 import WidgetKit
@@ -85,24 +84,28 @@ struct TypingIconView: View {
     }
 }
 
-/// Three green "typing" dots cycling via Timer (TimelineView does not animate
-/// inside Live Activities).
+/// Three green "typing" dots. Timers and regular SwiftUI animations are frozen
+/// inside Live Activities (the island is rendered as an out-of-process
+/// snapshot), so the only reliably animated option is an SF Symbol effect:
+/// `ellipsis` + `.variableColor` is system-driven and keeps looping on its own.
 struct TypingDotsView: View {
-    @State private var phase = 0
-    private let timer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
-
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<3, id: \.self) { i in
-                Circle()
-                    .fill(accentGreen)
-                    .frame(width: 6, height: 6)
-                    .opacity(i == phase ? 1.0 : 0.35)
-                    .offset(y: i == phase ? -2 : 0)
+        if #available(iOS 17.0, *) {
+            Image(systemName: "ellipsis")
+                .symbolEffect(
+                    .variableColor.iterative.dimInactiveLayers.nonReversing,
+                    options: .repeating
+                )
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(accentGreen)
+        } else {
+            HStack(spacing: 4) {
+                ForEach(0..<3, id: \.self) { _ in
+                    Circle()
+                        .fill(accentGreen)
+                        .frame(width: 6, height: 6)
+                }
             }
-        }
-        .onReceive(timer) { _ in
-            phase = (phase + 1) % 3
         }
     }
 }
