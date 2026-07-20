@@ -32,6 +32,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // Inline "Ответить" action on Max message pushes (lock screen / Notification Center / banner)
         ReplyManager.registerCategories()
 
+        // Live Activity push-to-start token for the typing indicator (iOS 17.2+)
+        if #available(iOS 16.2, *) {
+            TypingActivityManager.observePushToStartToken()
+        }
+
         // Also sync VoIP token if persisted from previous launch
         CallManager.shared.syncVoipToken()
 
@@ -66,8 +71,18 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     /// Show notifications in foreground.
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        // Apply badge from payload if present
         let userInfo = notification.request.content.userInfo
+
+        // Typing pushes drive the Dynamic Island Live Activity only — never a banner/sound.
+        if TypingPush.isTyping(userInfo) {
+            if #available(iOS 16.2, *) {
+                Task { await TypingActivityManager.handle(payload: userInfo) }
+            }
+            completionHandler([])
+            return
+        }
+
+        // Apply badge from payload if present
         if let aps = userInfo["aps"] as? [String: Any], let badge = aps["badge"] as? Int {
             BadgeSync.shared.applyBadge(badge)
         }
@@ -91,6 +106,28 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     /// Silent/background push delivery — refresh the widget feed even if the app never comes to foreground.
     func application(_ application: UIApplication, didReceiveRemoteNotification userInfo: [AnyHashable: Any], fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        // Silent typing push → Live Activity only; no widget refresh, no badge.
+        if TypingPush.isTyping(userInfo) {
+            guard #available(iOS 16.2, *) else {
+                completionHandler(.noData)
+                return
+            }
+            var typingTask: UIBackgroundTaskIdentifier = .invalid
+            typingTask = UIApplication.shared.beginBackgroundTask(withName: "typing-live-activity") {
+                UIApplication.shared.endBackgroundTask(typingTask)
+                typingTask = .invalid
+            }
+            Task {
+                await TypingActivityManager.handle(payload: userInfo)
+                if typingTask != .invalid {
+                    UIApplication.shared.endBackgroundTask(typingTask)
+                    typingTask = .invalid
+                }
+                completionHandler(.noData)
+            }
+            return
+        }
+
         if let aps = userInfo["aps"] as? [String: Any], let badge = aps["badge"] as? Int {
             BadgeSync.shared.applyBadge(badge)
         }

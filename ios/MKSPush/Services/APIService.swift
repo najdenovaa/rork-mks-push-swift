@@ -122,6 +122,21 @@ nonisolated struct APIService: Sendable {
         }
     }
 
+    /// POST /api/typing-token/{userId} — ActivityKit push-to-start token for the
+    /// typing Live Activity (iOS 17.2+), so the server can start it via APNs.
+    func sendTypingActivityToken(userId: String, token: String) async throws {
+        let url = baseURL.appendingPathComponent("api/typing-token/\(userId)")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["token": token])
+        let (data, response) = try await session.data(for: request)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw URLError(.badServerResponse, userInfo: ["body": body, "status": http.statusCode])
+        }
+    }
+
     // MARK: - Call
 
     func callAnswered(userId: String, callUUID: String, conversationId: String?) async -> Bool {
