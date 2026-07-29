@@ -75,6 +75,12 @@ enum ReplyManager {
         string(payloadData(userInfo), "chat_id")
     }
 
+    /// Extracts message_id from a push payload (top-level or nested under "data"),
+    /// so a quick reply quotes the exact message the user replied to.
+    static func messageId(from userInfo: [AnyHashable: Any]) -> String? {
+        string(payloadData(userInfo), "message_id")
+    }
+
     private static func isReviewOrDemo(_ data: [AnyHashable: Any]) -> Bool {
         if let flag = data["review_mode"] as? String, flag == "1" { return true }
         if let flag = data["review_mode"] as? Bool, flag { return true }
@@ -86,13 +92,15 @@ enum ReplyManager {
     // MARK: - Sending
 
     /// Sends the typed reply text to the server on behalf of the given userId.
+    /// `replyTo` (message_id of the push being replied to) makes the server quote
+    /// that exact message instead of the latest one in the chat.
     /// Returns true on success (200 { ok: true }); false on empty text or any failure.
     @discardableResult
-    static func sendReply(userId: String, chatId: String, text: String) async -> Bool {
+    static func sendReply(userId: String, chatId: String, text: String, replyTo: String? = nil) async -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }
         do {
-            try await APIService.shared.sendReply(userId: userId, chatId: chatId, text: trimmed)
+            try await APIService.shared.sendReply(userId: userId, chatId: chatId, text: trimmed, replyTo: replyTo)
             return true
         } catch {
             print("[ReplyManager] sendReply failed: \(error.localizedDescription)")

@@ -199,6 +199,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             return
         }
         let text = textResponse.userText
+        // message_id of the exact push being replied to — the server quotes it
+        // instead of blindly quoting the latest message in the chat.
+        let replyTo = ReplyManager.messageId(from: userInfo)
 
         var bgTask: UIBackgroundTaskIdentifier = .invalid
         bgTask = UIApplication.shared.beginBackgroundTask(withName: "quick-reply-send") {
@@ -210,7 +213,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         }
 
         Task {
-            let success = await ReplyManager.sendReply(userId: userId, chatId: chatId, text: text)
+            let success = await ReplyManager.sendReply(userId: userId, chatId: chatId, text: text, replyTo: replyTo)
             if success {
                 UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [identifier])
             }
