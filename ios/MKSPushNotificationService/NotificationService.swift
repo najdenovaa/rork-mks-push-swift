@@ -148,9 +148,56 @@ final class NotificationService: UNNotificationServiceExtension {
             if !content.attachments.isEmpty {
                 updated.attachments = content.attachments
             }
+            // Re-apply reply metadata (message_id etc.) — updating(from:) can drop
+            // userInfo fields, breaking the quoted quick reply (reply_to).
+            Self.preserveReplyMetadata(
+                in: updated,
+                from: data,
+                originalUserInfo: content.userInfo
+            )
             return updated
         }
         return content
+    }
+
+    /// Restores the payload fields the main app's quick-reply path depends on
+    /// (ReplyManager reads them from the delivered notification's userInfo).
+    /// `message_id` is critical: it becomes `reply_to` so the server quotes the
+    /// exact message the user replied to.
+    private static func preserveReplyMetadata(
+        in content: UNMutableNotificationContent,
+        from data: [AnyHashable: Any],
+        originalUserInfo: [AnyHashable: Any]
+    ) {
+        var userInfo = content.userInfo
+        for key in [
+            "chat_id", "chat_type", "is_dialog", "push_type",
+            "sender_id", "sender_name", "sender_avatar_url",
+            "open_url", "media_url", "media_type",
+            "message_id",
+        ] {
+            if let value = data[key] {
+                userInfo[key] = value
+            }
+        }
+        if let nested = originalUserInfo["data"] as? [String: Any] {
+            userInfo["data"] = nested
+        } else if let chatId = data["chat_id"] {
+            // Rebuild a minimal nested "data" dict (some app paths read from it).
+            // Deliberately NO sender_* keys here — nesting them breaks quick reply.
+            var backup: [String: Any] = [
+                "chat_id": chatId,
+                "chat_type": data["chat_type"] ?? "dialog",
+                "is_dialog": data["is_dialog"] ?? "1",
+                "url": data["open_url"] ?? "",
+                "open_url": data["open_url"] ?? "",
+            ]
+            if let mid = data["message_id"] {
+                backup["message_id"] = mid
+            }
+            userInfo["data"] = backup
+        }
+        content.userInfo = userInfo
     }
 
     // MARK: - Downloads
