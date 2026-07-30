@@ -3,8 +3,10 @@
 //  MKSPushNotificationContent
 //
 //  Custom UI inside the expanded (long-pressed) Max message push:
-//  a static 2-row grid of 6 big emoji reactions each (12 total) —
+//  a grid of big emoji reactions (up to 12, 6 per row) —
 //  tap to react (POST /api/react), Telegram-style.
+//  The emoji list comes from the push payload's top-level "reactions"
+//  array; falls back to a built-in default set when absent.
 //  Text replies still go through the system "Ответить" action below.
 //
 
@@ -16,37 +18,34 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
 
     private static let serverURL = URL(string: "https://mkspush.ru")!
     private static let appGroupId = "group.ru.mskpush.app"
-    // 2 rows x 6 columns, most-used reactions first.
-    private static let emojiRows: [[String]] = [
-        ["👍", "❤️", "🔥", "😂", "😮", "🙏"],
-        ["😢", "👏", "🎉", "💯", "👎", "😡"],
+    // Fallback used only when the push payload doesn't carry "reactions".
+    private static let defaultReactions: [String] = [
+        "👍", "❤️", "🔥", "😂", "😮", "🙏", "😢", "👏", "🎉", "💯", "👎", "😡",
     ]
+    private static let columnsPerRow = 6
+    private static let maxReactions = 12
 
     private static let buttonHeight: CGFloat = 52
     private static let emojiFontSize: CGFloat = 30
     private static let rowSpacing: CGFloat = 10
     private static let verticalPadding: CGFloat = 12
     private static let horizontalPadding: CGFloat = 14
-    private static var gridHeight: CGFloat {
-        CGFloat(emojiRows.count) * buttonHeight
-            + CGFloat(emojiRows.count - 1) * rowSpacing
+    private static func gridHeight(rowCount: Int) -> CGFloat {
+        CGFloat(rowCount) * buttonHeight
+            + CGFloat(max(rowCount - 1, 0)) * rowSpacing
             + verticalPadding * 2
     }
 
     private var chatId: String?
     private var messageId: String?
     private var isSending = false
+    private var currentReactions: [String] = []
 
     private let container = UIStackView()
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .secondarySystemBackground
-
-        // Fix the height immediately — the grid never depends on payload or layout
-        // timing. Hiding/zeroing based on payload was what produced the blank area:
-        // the system had already reserved space but the grid was invisible.
-        preferredContentSize = CGSize(width: 0, height: Self.gridHeight)
 
         container.axis = .vertical
         container.spacing = Self.rowSpacing
@@ -61,7 +60,46 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
             container.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -Self.verticalPadding),
         ])
 
-        for row in Self.emojiRows {
+        // Build with the default set immediately — the grid never depends on
+        // payload timing. didReceive rebuilds it with the payload's own list
+        // (if present) before the extension is shown to the user.
+        buildGrid(with: Self.defaultReactions)
+    }
+
+    func didReceive(_ notification: UNNotification) {
+        let userInfo = notification.request.content.userInfo
+        let data = Self.payloadData(userInfo)
+        chatId = Self.string(data, "chat_id")
+        messageId = Self.string(data, "message_id")
+
+        // "reactions" lives at the top level of the push payload, not inside
+        // the nested "data" dict — read it from the raw userInfo.
+        let reactions = (userInfo["reactions"] as? [String]).flatMap { $0.isEmpty ? nil : $0 } ?? Self.defaultReactions
+        buildGrid(with: reactions)
+
+        NSLog(
+            "[MKSPush ContentExt] didReceive chat_id=%@ message_id=%@ reactions=%d",
+            chatId ?? "nil", messageId ?? "nil", currentReactions.count
+        )
+    }
+
+    // MARK: - Grid building
+
+    private func buildGrid(with reactions: [String]) {
+        let clamped = Array(reactions.prefix(Self.maxReactions))
+        guard clamped != currentReactions else { return }
+        currentReactions = clamped
+
+        container.arrangedSubviews.forEach {
+            container.removeArrangedSubview($0)
+            $0.removeFromSuperview()
+        }
+
+        let rows = stride(from: 0, to: clamped.count, by: Self.columnsPerRow).map {
+            Array(clamped[$0..<min($0 + Self.columnsPerRow, clamped.count)])
+        }
+
+        for row in rows {
             let rowStack = UIStackView()
             rowStack.axis = .horizontal
             rowStack.spacing = 8
@@ -80,20 +118,8 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
             }
             container.addArrangedSubview(rowStack)
         }
-    }
 
-    func didReceive(_ notification: UNNotification) {
-        // Only parse the payload here — the grid is ALWAYS visible (the max_reply
-        // category is only attached to reactable message pushes anyway). Tap-time
-        // guards handle any push that somehow lacks chat_id/message_id.
-        let data = Self.payloadData(notification.request.content.userInfo)
-        chatId = Self.string(data, "chat_id")
-        messageId = Self.string(data, "message_id")
-        NSLog(
-            "[MKSPush ContentExt] didReceive chat_id=%@ message_id=%@",
-            chatId ?? "nil", messageId ?? "nil"
-        )
-        preferredContentSize = CGSize(width: 0, height: Self.gridHeight)
+        preferredContentSize = CGSize(width: 0, height: Self.gridHeight(rowCount: rows.count))
     }
 
     // MARK: - Reaction tap
