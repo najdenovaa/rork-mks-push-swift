@@ -10,6 +10,7 @@
 		XX6115E6DFB45764F03CC4XX /* MKSPushLiveActivity.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = XX7A7040EED2C7FBF8B9B2XX /* MKSPushLiveActivity.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		XXF65CF8DBA130B2950174XX /* MKSPushWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = XXF9780575A7E14BC79549XX /* MKSPushWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		XX6F45631B2F11FD187A57XX /* MKSPushNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = XX6344926AD1A47CA9EA74XX /* MKSPushNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		XXAABBCCDDEE0000000001XX /* MKSPushNotificationContent.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = XXAABBCCDDEE0000000003XX /* MKSPushNotificationContent.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -48,6 +49,13 @@
 			remoteGlobalIDString = XX496E1E000586CA833FB3XX;
 			remoteInfo = MKSPushNotificationService;
 		};
+		XXAABBCCDDEE0000000002XX /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 105FC5722E9EAD3100EA8BCF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = XXAABBCCDDEE0000000006XX;
+			remoteInfo = MKSPushNotificationContent;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -58,6 +66,7 @@
 				XXF65CF8DBA130B2950174XX /* MKSPushWidget.appex in Embed Foundation Extensions */,
 				XX6115E6DFB45764F03CC4XX /* MKSPushLiveActivity.appex in Embed Foundation Extensions */,
 				XX6F45631B2F11FD187A57XX /* MKSPushNotificationService.appex in Embed Foundation Extensions */,
+				XXAABBCCDDEE0000000001XX /* MKSPushNotificationContent.appex in Embed Foundation Extensions */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			name = "Embed Foundation Extensions";
@@ -73,6 +82,7 @@
 		XX7A7040EED2C7FBF8B9B2XX /* MKSPushLiveActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MKSPushLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		XXF9780575A7E14BC79549XX /* MKSPushWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MKSPushWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		XX6344926AD1A47CA9EA74XX /* MKSPushNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MKSPushNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		XXAABBCCDDEE0000000003XX /* MKSPushNotificationContent.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MKSPushNotificationContent.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -96,6 +106,13 @@
 				Info.plist,
 			);
 			target = XX496E1E000586CA833FB3XX /* MKSPushNotificationService */;
+		};
+		XXAABBCCDDEE0000000004XX /* Exceptions for "MKSPushNotificationContent" folder in "MKSPushNotificationContent" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = XXAABBCCDDEE0000000006XX /* MKSPushNotificationContent */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -137,6 +154,14 @@
 			sourceTree = "<group>";
 			exceptions = (
 				XXD7FE3E11F4B6A93259E0XX /* Exceptions for "MKSPushNotificationService" folder in "MKSPushNotificationService" target */,
+			);
+		};
+		XXAABBCCDDEE0000000005XX /* MKSPushNotificationContent */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MKSPushNotificationContent;
+			sourceTree = "<group>";
+			exceptions = (
+				XXAABBCCDDEE0000000004XX /* Exceptions for "MKSPushNotificationContent" folder in "MKSPushNotificationContent" target */,
 			);
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -184,6 +209,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		XXAABBCCDDEE0000000012XX /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -197,6 +229,7 @@
 				XX0C22BEE5A5A3B4CEC3F9XX /* MKSPushWidget */,
 				XX523FEC9C2DAA79251BB0XX /* MKSPushLiveActivity */,
 				XX5EE1DEA25875F42D644CXX /* MKSPushNotificationService */,
+				XXAABBCCDDEE0000000005XX /* MKSPushNotificationContent */,
 			);
 			sourceTree = "<group>";
 		};
@@ -209,6 +242,7 @@
 				XXF9780575A7E14BC79549XX /* MKSPushWidget.appex */,
 				XX7A7040EED2C7FBF8B9B2XX /* MKSPushLiveActivity.appex */,
 				XX6344926AD1A47CA9EA74XX /* MKSPushNotificationService.appex */,
+				XXAABBCCDDEE0000000003XX /* MKSPushNotificationContent.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -231,6 +265,7 @@
 				XX38D245DE6256A1EE1195XX /* PBXTargetDependency */,
 				XXF7EF59111AD9112A3374XX /* PBXTargetDependency */,
 				XXDEF548714D9EF19510EFXX /* PBXTargetDependency */,
+				XXAABBCCDDEE0000000007XX /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				105FC57C2E9EAD3100EA8BCF /* MKSPush */,
@@ -348,6 +383,26 @@
 				XX5EE1DEA25875F42D644CXX /* MKSPushNotificationService */,
 			);
 		};
+		XXAABBCCDDEE0000000006XX /* MKSPushNotificationContent */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = XXAABBCCDDEE0000000008XX /* Build configuration list for PBXNativeTarget "MKSPushNotificationContent" */;
+			buildPhases = (
+				XXAABBCCDDEE0000000011XX /* Sources */,
+				XXAABBCCDDEE0000000012XX /* Frameworks */,
+				XXAABBCCDDEE0000000013XX /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MKSPushNotificationContent;
+			productName = MKSPushNotificationContent;
+			productReference = XXAABBCCDDEE0000000003XX /* MKSPushNotificationContent.appex */;
+			productType = "com.apple.product-type.app-extension";
+			fileSystemSynchronizedGroups = (
+				XXAABBCCDDEE0000000005XX /* MKSPushNotificationContent */,
+			);
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -391,6 +446,7 @@
 				XXA1CC659C1E29C2946260XX /* MKSPushWidget */,
 				XX3322C249CBC9BC21BE2CXX /* MKSPushLiveActivity */,
 				XX496E1E000586CA833FB3XX /* MKSPushNotificationService */,
+				XXAABBCCDDEE0000000006XX /* MKSPushNotificationContent */,
 			);
 		};
 /* End PBXProject section */
@@ -432,6 +488,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		XX8558351FE6ED561A0217XX /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		XXAABBCCDDEE0000000013XX /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -483,6 +546,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		XXAABBCCDDEE0000000011XX /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -510,6 +580,11 @@
 			isa = PBXTargetDependency;
 			target = XX496E1E000586CA833FB3XX /* MKSPushNotificationService */;
 			targetProxy = XX8343F1EE4099FDDC2317XX /* PBXContainerItemProxy */;
+		};
+		XXAABBCCDDEE0000000007XX /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = XXAABBCCDDEE0000000006XX /* MKSPushNotificationContent */;
+			targetProxy = XXAABBCCDDEE0000000002XX /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -641,7 +716,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
+				CURRENT_PROJECT_VERSION = 38;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				CODE_SIGN_ENTITLEMENTS = MKSPush/MKSPush.entitlements;
@@ -658,7 +733,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.53;
+				MARKETING_VERSION = 1.0.54;
 				PRODUCT_BUNDLE_IDENTIFIER = ru.mskpush.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -688,7 +763,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
+				CURRENT_PROJECT_VERSION = 38;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				CODE_SIGN_ENTITLEMENTS = MKSPush/MKSPush.entitlements;
@@ -705,7 +780,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.53;
+				MARKETING_VERSION = 1.0.54;
 				PRODUCT_BUNDLE_IDENTIFIER = ru.mskpush.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -828,8 +903,8 @@
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
-				MARKETING_VERSION = 1.0.53;
+				CURRENT_PROJECT_VERSION = 38;
+				MARKETING_VERSION = 1.0.54;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
 			};
@@ -850,8 +925,8 @@
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
-				MARKETING_VERSION = 1.0.53;
+				CURRENT_PROJECT_VERSION = 38;
+				MARKETING_VERSION = 1.0.54;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
 			};
@@ -873,8 +948,8 @@
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
-				MARKETING_VERSION = 1.0.53;
+				CURRENT_PROJECT_VERSION = 38;
+				MARKETING_VERSION = 1.0.54;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
 			};
@@ -896,8 +971,8 @@
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
-				MARKETING_VERSION = 1.0.53;
+				CURRENT_PROJECT_VERSION = 38;
+				MARKETING_VERSION = 1.0.54;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
 			};
@@ -919,8 +994,8 @@
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
-				MARKETING_VERSION = 1.0.53;
+				CURRENT_PROJECT_VERSION = 38;
+				MARKETING_VERSION = 1.0.54;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
 			};
@@ -942,8 +1017,54 @@
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
-				MARKETING_VERSION = 1.0.53;
+				CURRENT_PROJECT_VERSION = 38;
+				MARKETING_VERSION = 1.0.54;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
+			};
+			name = Release;
+		};
+		XXAABBCCDDEE0000000009XX /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = ru.mskpush.app.notificationcontent;
+				SDKROOT = iphoneos;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MKSPushNotificationContent/Info.plist;
+				CODE_SIGN_ENTITLEMENTS = MKSPushNotificationContent/MKSPushNotificationContent.entitlements;
+				SWIFT_VERSION = 5.0;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 38;
+				MARKETING_VERSION = 1.0.54;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
+			};
+			name = Debug;
+		};
+		XXAABBCCDDEE0000000010XX /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = ru.mskpush.app.notificationcontent;
+				SDKROOT = iphoneos;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MKSPushNotificationContent/Info.plist;
+				CODE_SIGN_ENTITLEMENTS = MKSPushNotificationContent/MKSPushNotificationContent.entitlements;
+				SWIFT_VERSION = 5.0;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 38;
+				MARKETING_VERSION = 1.0.54;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
 				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
 			};
@@ -1011,6 +1132,15 @@
 			buildConfigurations = (
 				XX3762A7603DD97ED98F1AXX /* Debug */,
 				XXE743F745797475B99E28XX /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		XXAABBCCDDEE0000000008XX /* Build configuration list for PBXNativeTarget "MKSPushNotificationContent" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				XXAABBCCDDEE0000000009XX /* Debug */,
+				XXAABBCCDDEE0000000010XX /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

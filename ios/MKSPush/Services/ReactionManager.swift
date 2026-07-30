@@ -32,9 +32,10 @@ enum ReactionManager {
 
     // MARK: - Registration
 
-    /// Registers the shared "max_reply" category: inline text reply + 3 reaction
-    /// buttons (iOS shows up to 4 actions). Single registration point for the app —
-    /// replaces ReplyManager.registerCategories().
+    /// Registers the shared "max_reply" category. Reactions are now handled by
+    /// the notification content extension (horizontal scrollable emoji row shown
+    /// in the expanded push), so the category carries only the text reply action —
+    /// vertical emoji buttons would duplicate the row.
     static func registerCategories() {
         let replyAction = UNTextInputNotificationAction(
             identifier: ReplyManager.replyActionIdentifier,
@@ -43,13 +44,9 @@ enum ReactionManager {
             textInputButtonTitle: "Отправить",
             textInputPlaceholder: "Сообщение…"
         )
-        let thumbsUp = UNNotificationAction(identifier: thumbsUpActionIdentifier, title: "👍", options: [])
-        let fire = UNNotificationAction(identifier: fireActionIdentifier, title: "🔥", options: [])
-        let heart = UNNotificationAction(identifier: heartActionIdentifier, title: "❤️", options: [])
-
         let category = UNNotificationCategory(
             identifier: ReplyManager.categoryIdentifier,
-            actions: [replyAction, thumbsUp, fire, heart],
+            actions: [replyAction],
             intentIdentifiers: ["INSendMessageIntent"],
             options: []
         )

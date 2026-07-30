@@ -32,6 +32,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // "max_reply" category: inline "Ответить" + 👍🔥❤️ reaction actions on Max message pushes
         ReactionManager.registerCategories()
 
+        // Share userId with app extensions (notification content extension reads it
+        // from the App Group to send reactions without opening the app).
+        UserStore.mirrorToAppGroup()
+
         // Live Activity push-to-start token for the typing indicator (iOS 17.2+),
         // plus re-sync tokens for any activity that's still running from a previous launch.
         if #available(iOS 16.2, *) {
