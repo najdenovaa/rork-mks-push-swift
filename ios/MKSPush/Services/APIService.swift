@@ -98,6 +98,47 @@ nonisolated struct APIService: Sendable {
         }
     }
 
+    // MARK: - Reactions
+
+    /// POST /api/react/{userId} — puts an emoji reaction on a specific Max message.
+    func sendReaction(userId: String, chatId: String, messageId: String, reaction: String) async throws {
+        let url = baseURL.appendingPathComponent("api/react/\(userId)")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 15
+        let chatIdValue: Any = Int(chatId) ?? chatId
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "chat_id": chatIdValue,
+            "message_id": messageId,
+            "reaction": reaction,
+        ])
+        let (data, response) = try await session.data(for: request)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw URLError(.badServerResponse, userInfo: ["body": body, "status": http.statusCode])
+        }
+    }
+
+    /// POST /api/unreact/{userId} — removes our reaction from a Max message.
+    func removeReaction(userId: String, chatId: String, messageId: String) async throws {
+        let url = baseURL.appendingPathComponent("api/unreact/\(userId)")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 15
+        let chatIdValue: Any = Int(chatId) ?? chatId
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "chat_id": chatIdValue,
+            "message_id": messageId,
+        ])
+        let (data, response) = try await session.data(for: request)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw URLError(.badServerResponse, userInfo: ["body": body, "status": http.statusCode])
+        }
+    }
+
     // MARK: - Tokens
 
     func sendAPNsToken(userId: String, token: String) async throws {

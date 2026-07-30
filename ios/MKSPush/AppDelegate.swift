@@ -29,8 +29,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // Standard APNs registration
         PushManager.shared.registerIfAuthorized()
 
-        // Inline "Ответить" action on Max message pushes (lock screen / Notification Center / banner)
-        ReplyManager.registerCategories()
+        // "max_reply" category: inline "Ответить" + 👍🔥❤️ reaction actions on Max message pushes
+        ReactionManager.registerCategories()
 
         // Live Activity push-to-start token for the typing indicator (iOS 17.2+),
         // plus re-sync tokens for any activity that's still running from a previous launch.
@@ -163,6 +163,18 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             BadgeSync.shared.applyBadge(badge)
         }
 
+        // Reaction buttons (👍 / 🔥 / ❤️) from long-press — react to the original Max
+        // message via /api/react, never open the app.
+        if ReactionManager.reactionActionIdentifiers.contains(response.actionIdentifier) {
+            handleReactionAction(
+                actionIdentifier: response.actionIdentifier,
+                userInfo: userInfo,
+                identifier: response.notification.request.identifier,
+                completionHandler: completionHandler
+            )
+            return
+        }
+
         // Inline "Ответить" action from long-press — send text to server, never open the app.
         // completionHandler() is deferred until the HTTP request actually finishes (see
         // handleReplyAction), so the system keeps us alive for delivery instead of racing it.
@@ -213,7 +225,15 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         }
 
         Task {
-            let success = await ReplyManager.sendReply(userId: userId, chatId: chatId, text: text, replyTo: replyTo)
+            let success: Bool
+            // Emoji-only reply text routes to the react API — a single emoji typed
+            // into "Ответить" means a reaction, not an emoji reply message.
+            if let emoji = ReactionManager.isEmojiOnlyReactionText(text),
+               let messageId = replyTo, !messageId.isEmpty {
+                success = await ReactionManager.sendReaction(userId: userId, chatId: chatId, messageId: messageId, reaction: emoji)
+            } else {
+                success = await ReplyManager.sendReply(userId: userId, chatId: chatId, text: text, replyTo: replyTo)
+            }
             if success {
                 UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [identifier])
             }
@@ -222,6 +242,38 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
                 bgTask = .invalid
             }
             // Only signal completion to the system after the HTTP request has finished.
+            completionHandler()
+        }
+    }
+
+    /// Sends an emoji reaction to the original Max message without opening the app.
+    /// Same background-task pattern as handleReplyAction.
+    private func handleReactionAction(actionIdentifier: String, userInfo: [AnyHashable: Any], identifier: String, completionHandler: @escaping () -> Void) {
+        guard ReactionManager.isReactable(userInfo: userInfo),
+              let emoji = ReactionManager.reactionEmoji(for: actionIdentifier),
+              let userId = UserStore.userId, !userId.isEmpty,
+              let chatId = ReplyManager.chatId(from: userInfo),
+              let messageId = ReplyManager.messageId(from: userInfo) else {
+            completionHandler()
+            return
+        }
+
+        var bgTask: UIBackgroundTaskIdentifier = .invalid
+        bgTask = UIApplication.shared.beginBackgroundTask(withName: "quick-reaction-send") {
+            UIApplication.shared.endBackgroundTask(bgTask)
+            bgTask = .invalid
+            completionHandler()
+        }
+
+        Task {
+            let success = await ReactionManager.sendReaction(userId: userId, chatId: chatId, messageId: messageId, reaction: emoji)
+            if success {
+                UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [identifier])
+            }
+            if bgTask != .invalid {
+                UIApplication.shared.endBackgroundTask(bgTask)
+                bgTask = .invalid
+            }
             completionHandler()
         }
     }

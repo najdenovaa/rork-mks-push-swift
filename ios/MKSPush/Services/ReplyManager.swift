@@ -16,26 +16,8 @@ enum ReplyManager {
     static let categoryIdentifier = "max_reply"
     static let replyActionIdentifier = "reply"
 
-    // MARK: - Registration
-
-    /// Registers the "max_reply" category with an inline text-input "Ответить" action.
-    /// Must be called once at launch, before any notification is presented/acted on.
-    static func registerCategories() {
-        let replyAction = UNTextInputNotificationAction(
-            identifier: replyActionIdentifier,
-            title: "Ответить",
-            options: [],
-            textInputButtonTitle: "Отправить",
-            textInputPlaceholder: "Сообщение…"
-        )
-        let category = UNNotificationCategory(
-            identifier: categoryIdentifier,
-            actions: [replyAction],
-            intentIdentifiers: ["INSendMessageIntent"],
-            options: []
-        )
-        UNUserNotificationCenter.current().setNotificationCategories([category])
-    }
+    // Category registration lives in ReactionManager.registerCategories() — a
+    // single "max_reply" category carrying both the reply and reaction actions.
 
     // MARK: - Eligibility
 

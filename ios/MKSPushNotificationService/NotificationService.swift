@@ -174,7 +174,7 @@ final class NotificationService: UNNotificationServiceExtension {
             "chat_id", "chat_type", "is_dialog", "push_type",
             "sender_id", "sender_name", "sender_avatar_url",
             "open_url", "media_url", "media_type",
-            "message_id",
+            "message_id", "reaction",
         ] {
             if let value = data[key] {
                 userInfo[key] = value
