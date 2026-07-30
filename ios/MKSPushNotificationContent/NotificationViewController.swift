@@ -62,6 +62,7 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
             let button = UIButton(type: .custom)
             button.setTitle(emoji, for: .normal)
             button.titleLabel?.font = .systemFont(ofSize: Self.emojiFontSize)
+            button.setTitleColor(.label, for: .normal)
             button.backgroundColor = .systemGray5
             button.layer.cornerRadius = Self.emojiButtonSize / 2
             button.tag = index
@@ -97,11 +98,11 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     private func updatePreferredSize() {
         scrollView.isHidden = !isReactable
         guard isReactable else {
-            preferredContentSize = CGSize(width: 0, height: 0)
+            preferredContentSize = .zero
             return
         }
-        let width = max(view.bounds.width, UIScreen.main.bounds.width)
-        preferredContentSize = CGSize(width: width, height: Self.rowHeight)
+        guard view.bounds.width > 0 else { return } // wait for real layout
+        preferredContentSize = CGSize(width: view.bounds.width, height: Self.rowHeight)
     }
 
     // MARK: - Reaction tap
