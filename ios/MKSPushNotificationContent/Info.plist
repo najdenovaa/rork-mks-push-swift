@@ -7,7 +7,7 @@
 		<key>NSExtensionAttributes</key>
 		<dict>
 			<key>UNNotificationExtensionCategory</key>
-			<string>max_reply</string>
+			<string>max_reply_content_disabled</string>
 			<key>UNNotificationExtensionInitialContentSizeRatio</key>
 			<real>0.22</real>
 			<key>UNNotificationExtensionUserInteractionEnabled</key>
