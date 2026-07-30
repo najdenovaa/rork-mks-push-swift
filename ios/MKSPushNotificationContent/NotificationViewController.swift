@@ -3,8 +3,8 @@
 //  MKSPushNotificationContent
 //
 //  Custom UI inside the expanded (long-pressed) Max message push:
-//  a horizontally scrollable row of big emoji reactions — swipe left/right
-//  to browse, tap to react (POST /api/react), Telegram-style.
+//  a static 2-row grid of 6 big emoji reactions each (12 total) —
+//  tap to react (POST /api/react), Telegram-style.
 //  Text replies still go through the system "Ответить" action below.
 //
 
@@ -16,77 +16,73 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
 
     private static let serverURL = URL(string: "https://mkspush.ru")!
     private static let appGroupId = "group.ru.mskpush.app"
-    private static let emojis = ["👍", "❤️", "🔥", "😂", "😮", "😢", "🙏", "👏", "🎉", "💯", "👎", "😡"]
+    // 2 rows x 6 columns, most-used reactions first.
+    private static let emojiRows: [[String]] = [
+        ["👍", "❤️", "🔥", "😂", "😮", "🙏"],
+        ["😢", "👏", "🎉", "💯", "👎", "😡"],
+    ]
 
-    private static let rowHeight: CGFloat = 72
-    private static let emojiButtonSize: CGFloat = 56
-    private static let emojiFontSize: CGFloat = 36
+    private static let buttonHeight: CGFloat = 52
+    private static let emojiFontSize: CGFloat = 30
+    private static let rowSpacing: CGFloat = 10
+    private static let verticalPadding: CGFloat = 12
+    private static let horizontalPadding: CGFloat = 14
+    private static var gridHeight: CGFloat {
+        CGFloat(emojiRows.count) * buttonHeight
+            + CGFloat(emojiRows.count - 1) * rowSpacing
+            + verticalPadding * 2
+    }
 
     private var chatId: String?
     private var messageId: String?
     private var isReactable = false
     private var isSending = false
 
-    private let scrollView = UIScrollView()
-    private let stack = UIStackView()
+    private let container = UIStackView()
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .secondarySystemBackground
 
-        scrollView.showsHorizontalScrollIndicator = false
-        scrollView.alwaysBounceHorizontal = true
-        scrollView.contentInset = UIEdgeInsets(top: 0, left: 14, bottom: 0, right: 14)
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(scrollView)
-
-        stack.axis = .horizontal
-        stack.spacing = 10
-        stack.alignment = .center
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        scrollView.addSubview(stack)
+        container.axis = .vertical
+        container.spacing = Self.rowSpacing
+        container.distribution = .fillEqually
+        container.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(container)
 
         NSLayoutConstraint.activate([
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.topAnchor.constraint(equalTo: view.topAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            stack.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
-            stack.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: 8),
-            stack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -8),
-            stack.heightAnchor.constraint(equalTo: scrollView.frameLayoutGuide.heightAnchor, constant: -16),
+            container.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Self.horizontalPadding),
+            container.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -Self.horizontalPadding),
+            container.topAnchor.constraint(equalTo: view.topAnchor, constant: Self.verticalPadding),
+            container.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -Self.verticalPadding),
         ])
 
-        for (index, emoji) in Self.emojis.enumerated() {
-            let button = UIButton(type: .custom)
-            button.setTitle(emoji, for: .normal)
-            button.titleLabel?.font = .systemFont(ofSize: Self.emojiFontSize)
-            button.setTitleColor(.label, for: .normal)
-            button.backgroundColor = .systemGray5
-            button.layer.cornerRadius = Self.emojiButtonSize / 2
-            button.tag = index
-            button.addTarget(self, action: #selector(reactionTapped(_:)), for: .touchUpInside)
-            NSLayoutConstraint.activate([
-                button.widthAnchor.constraint(equalToConstant: Self.emojiButtonSize),
-                button.heightAnchor.constraint(equalToConstant: Self.emojiButtonSize),
-            ])
-            stack.addArrangedSubview(button)
-        }
-    }
+        for row in Self.emojiRows {
+            let rowStack = UIStackView()
+            rowStack.axis = .horizontal
+            rowStack.spacing = 8
+            rowStack.distribution = .fillEqually
+            rowStack.alignment = .fill
 
-    override func viewDidLayoutSubviews() {
-        // view.bounds.width is 0 in viewDidLoad/didReceive — the extension only
-        // gets its real width here, so this is the reliable place to size content.
-        super.viewDidLayoutSubviews()
-        updatePreferredSize()
+            for emoji in row {
+                let button = UIButton(type: .custom)
+                button.setTitle(emoji, for: .normal)
+                button.titleLabel?.font = .systemFont(ofSize: Self.emojiFontSize)
+                button.setTitleColor(.label, for: .normal)
+                button.backgroundColor = .systemGray5
+                button.layer.cornerRadius = Self.buttonHeight / 2
+                button.addTarget(self, action: #selector(reactionTapped(_:)), for: .touchUpInside)
+                rowStack.addArrangedSubview(button)
+            }
+            container.addArrangedSubview(rowStack)
+        }
     }
 
     func didReceive(_ notification: UNNotification) {
         let data = Self.payloadData(notification.request.content.userInfo)
         chatId = Self.string(data, "chat_id")
         messageId = Self.string(data, "message_id")
-        // No message_id (or non-reactable push) — hide the row entirely.
+        // No message_id (or non-reactable push) — hide the grid entirely.
         isReactable = (chatId?.isEmpty == false) && (messageId?.isEmpty == false)
         NSLog(
             "[MKSPush ContentExt] chat_id=%@ message_id=%@ reactable=%d width=%.0f",
@@ -95,14 +91,16 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         updatePreferredSize()
     }
 
+    /// The grid's height is fixed regardless of the view's current width, so we
+    /// set it immediately without waiting on `view.bounds.width` (that gate was
+    /// the cause of the row never appearing — the extension could go a full
+    /// layout pass without a nonzero width). Width is intentionally left at 0:
+    /// the system stretches content extensions to the notification's full width.
     private func updatePreferredSize() {
-        scrollView.isHidden = !isReactable
-        guard isReactable else {
-            preferredContentSize = .zero
-            return
-        }
-        guard view.bounds.width > 0 else { return } // wait for real layout
-        preferredContentSize = CGSize(width: view.bounds.width, height: Self.rowHeight)
+        container.isHidden = !isReactable
+        preferredContentSize = isReactable
+            ? CGSize(width: 0, height: Self.gridHeight)
+            : .zero
     }
 
     // MARK: - Reaction tap
@@ -115,7 +113,7 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         isSending = true
 
         UIView.animate(withDuration: 0.12, animations: {
-            sender.transform = CGAffineTransform(scaleX: 1.35, y: 1.35)
+            sender.transform = CGAffineTransform(scaleX: 1.25, y: 1.25)
             sender.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.3)
         })
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
