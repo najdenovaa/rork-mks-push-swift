@@ -9,7 +9,7 @@
 			<key>UNNotificationExtensionCategory</key>
 			<string>max_reply</string>
 			<key>UNNotificationExtensionInitialContentSizeRatio</key>
-			<real>0.18</real>
+			<real>0.22</real>
 			<key>UNNotificationExtensionUserInteractionEnabled</key>
 			<true/>
 			<key>UNNotificationExtensionDefaultContentHidden</key>

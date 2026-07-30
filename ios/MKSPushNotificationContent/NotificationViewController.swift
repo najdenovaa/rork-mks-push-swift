@@ -18,8 +18,13 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     private static let appGroupId = "group.ru.mskpush.app"
     private static let emojis = ["👍", "❤️", "🔥", "😂", "😮", "😢", "🙏", "👏", "🎉", "💯", "👎", "😡"]
 
+    private static let rowHeight: CGFloat = 72
+    private static let emojiButtonSize: CGFloat = 56
+    private static let emojiFontSize: CGFloat = 36
+
     private var chatId: String?
     private var messageId: String?
+    private var isReactable = false
     private var isSending = false
 
     private let scrollView = UIScrollView()
@@ -27,7 +32,7 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .clear
+        view.backgroundColor = .secondarySystemBackground
 
         scrollView.showsHorizontalScrollIndicator = false
         scrollView.alwaysBounceHorizontal = true
@@ -54,21 +59,26 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         ])
 
         for (index, emoji) in Self.emojis.enumerated() {
-            let button = UIButton(type: .system)
+            let button = UIButton(type: .custom)
             button.setTitle(emoji, for: .normal)
-            button.titleLabel?.font = .systemFont(ofSize: 34)
-            button.backgroundColor = UIColor.white.withAlphaComponent(0.08)
-            button.layer.cornerRadius = 25
+            button.titleLabel?.font = .systemFont(ofSize: Self.emojiFontSize)
+            button.backgroundColor = .systemGray5
+            button.layer.cornerRadius = Self.emojiButtonSize / 2
             button.tag = index
             button.addTarget(self, action: #selector(reactionTapped(_:)), for: .touchUpInside)
             NSLayoutConstraint.activate([
-                button.widthAnchor.constraint(equalToConstant: 50),
-                button.heightAnchor.constraint(equalToConstant: 50),
+                button.widthAnchor.constraint(equalToConstant: Self.emojiButtonSize),
+                button.heightAnchor.constraint(equalToConstant: Self.emojiButtonSize),
             ])
             stack.addArrangedSubview(button)
         }
+    }
 
-        preferredContentSize = CGSize(width: view.bounds.width, height: 66)
+    override func viewDidLayoutSubviews() {
+        // view.bounds.width is 0 in viewDidLoad/didReceive — the extension only
+        // gets its real width here, so this is the reliable place to size content.
+        super.viewDidLayoutSubviews()
+        updatePreferredSize()
     }
 
     func didReceive(_ notification: UNNotification) {
@@ -76,9 +86,22 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
         chatId = Self.string(data, "chat_id")
         messageId = Self.string(data, "message_id")
         // No message_id (or non-reactable push) — hide the row entirely.
-        let reactable = (chatId?.isEmpty == false) && (messageId?.isEmpty == false)
-        scrollView.isHidden = !reactable
-        preferredContentSize = CGSize(width: view.bounds.width, height: reactable ? 66 : 0)
+        isReactable = (chatId?.isEmpty == false) && (messageId?.isEmpty == false)
+        NSLog(
+            "[MKSPush ContentExt] chat_id=%@ message_id=%@ reactable=%d width=%.0f",
+            chatId ?? "nil", messageId ?? "nil", isReactable ? 1 : 0, view.bounds.width
+        )
+        updatePreferredSize()
+    }
+
+    private func updatePreferredSize() {
+        scrollView.isHidden = !isReactable
+        guard isReactable else {
+            preferredContentSize = CGSize(width: 0, height: 0)
+            return
+        }
+        let width = max(view.bounds.width, UIScreen.main.bounds.width)
+        preferredContentSize = CGSize(width: width, height: Self.rowHeight)
     }
 
     // MARK: - Reaction tap
@@ -94,9 +117,6 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
             sender.transform = CGAffineTransform(scaleX: 1.35, y: 1.35)
             sender.backgroundColor = UIColor.systemGreen.withAlphaComponent(0.3)
         })
-        if #available(iOS 17.5, *) {
-            // no-op; UIImpactFeedbackGenerator below covers all versions
-        }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
 
         sendReaction(userId: userId, chatId: chatId, messageId: messageId, emoji: emoji) { [weak self] success in
@@ -109,7 +129,7 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
                     self.isSending = false
                     UIView.animate(withDuration: 0.12) {
                         sender.transform = .identity
-                        sender.backgroundColor = UIColor.white.withAlphaComponent(0.08)
+                        sender.backgroundColor = .systemGray5
                     }
                 }
             }
