@@ -35,7 +35,6 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
 
     private var chatId: String?
     private var messageId: String?
-    private var isReactable = false
     private var isSending = false
 
     private let container = UIStackView()
@@ -43,6 +42,11 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .secondarySystemBackground
+
+        // Fix the height immediately — the grid never depends on payload or layout
+        // timing. Hiding/zeroing based on payload was what produced the blank area:
+        // the system had already reserved space but the grid was invisible.
+        preferredContentSize = CGSize(width: 0, height: Self.gridHeight)
 
         container.axis = .vertical
         container.spacing = Self.rowSpacing
@@ -79,28 +83,17 @@ final class NotificationViewController: UIViewController, UNNotificationContentE
     }
 
     func didReceive(_ notification: UNNotification) {
+        // Only parse the payload here — the grid is ALWAYS visible (the max_reply
+        // category is only attached to reactable message pushes anyway). Tap-time
+        // guards handle any push that somehow lacks chat_id/message_id.
         let data = Self.payloadData(notification.request.content.userInfo)
         chatId = Self.string(data, "chat_id")
         messageId = Self.string(data, "message_id")
-        // No message_id (or non-reactable push) — hide the grid entirely.
-        isReactable = (chatId?.isEmpty == false) && (messageId?.isEmpty == false)
         NSLog(
-            "[MKSPush ContentExt] chat_id=%@ message_id=%@ reactable=%d width=%.0f",
-            chatId ?? "nil", messageId ?? "nil", isReactable ? 1 : 0, view.bounds.width
+            "[MKSPush ContentExt] didReceive chat_id=%@ message_id=%@",
+            chatId ?? "nil", messageId ?? "nil"
         )
-        updatePreferredSize()
-    }
-
-    /// The grid's height is fixed regardless of the view's current width, so we
-    /// set it immediately without waiting on `view.bounds.width` (that gate was
-    /// the cause of the row never appearing — the extension could go a full
-    /// layout pass without a nonzero width). Width is intentionally left at 0:
-    /// the system stretches content extensions to the notification's full width.
-    private func updatePreferredSize() {
-        container.isHidden = !isReactable
-        preferredContentSize = isReactable
-            ? CGSize(width: 0, height: Self.gridHeight)
-            : .zero
+        preferredContentSize = CGSize(width: 0, height: Self.gridHeight)
     }
 
     // MARK: - Reaction tap
