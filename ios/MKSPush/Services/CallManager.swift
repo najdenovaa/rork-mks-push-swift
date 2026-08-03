@@ -47,6 +47,9 @@ final class CallManager: NSObject, ObservableObject {
     /// When set, the answered call is waiting for audio session to activate before we can end it cleanly.
     private var pendingEndAfterAnswer: UUID?
 
+    /// Guards against re-opening Max while an open attempt is already in flight.
+    private var maxOpenInFlight = false
+
     private override init() {
         let config = CXProviderConfiguration(localizedName: "MKS Push")
         config.supportsVideo = true
@@ -197,9 +200,15 @@ final class CallManager: NSObject, ObservableObject {
     }
 
     /// Opens the native Max app with accept parameters (tgt=accept). Never opens web.max.ru.
-    /// Tries max://call, then max://max.ru, then max:// as a last resort, stopping at the
-    /// first URL that UIApplication.shared.open reports as successful.
+    /// Single URL, no retry chain: on iOS, UIApplication.open's success callback can report
+    /// false even when Max did open, and retrying then bounces MKS Push <-> Max repeatedly.
     private func openMaxApp(conversationId: String?, vcp: String?, joinLink: String?) {
+        guard !maxOpenInFlight else {
+            print("[CallManager] openMaxApp skipped: already in flight")
+            return
+        }
+        maxOpenInFlight = true
+
         var items: [URLQueryItem] = []
         if let conversationId, !conversationId.isEmpty {
             items.append(URLQueryItem(name: "conversationId", value: conversationId))
@@ -208,42 +217,23 @@ final class CallManager: NSObject, ObservableObject {
         if let vcp, !vcp.isEmpty { items.append(URLQueryItem(name: "vcp", value: vcp)) }
         if let joinLink, !joinLink.isEmpty { items.append(URLQueryItem(name: "joinLink", value: joinLink)) }
 
-        var candidates: [URL] = []
-
         var callComps = URLComponents(string: "max://call")
         callComps?.queryItems = items.isEmpty ? nil : items
-        if let callURL = callComps?.url { candidates.append(callURL) }
+        guard let url = callComps?.url else {
+            maxOpenInFlight = false
+            return
+        }
 
-        var nativeComps = URLComponents()
-        nativeComps.scheme = "max"
-        nativeComps.host = "max.ru"
-        nativeComps.queryItems = items.isEmpty ? nil : items
-        if let nativeURL = nativeComps.url { candidates.append(nativeURL) }
-
-        var httpsComps = URLComponents(string: "https://max.ru")
-        httpsComps?.queryItems = items.isEmpty ? nil : items
-        if let httpsURL = httpsComps?.url { candidates.append(httpsURL) }
-
-        if let maxRoot = URL(string: "max://") { candidates.append(maxRoot) }
-
-        // No canOpenURL. Native Max first, https://max.ru only as a fallback. 
-        guard !candidates.isEmpty else { return }
-
-        func tryOpen(at index: Int) {
-            guard index < candidates.count else {
-                print("[CallManager] openMaxApp all URLs failed conv=\(conversationId ?? "-") hasVcp=\(vcp != nil) hasJoinLink=\(joinLink != nil)")
-                return
-            }
-            let url = candidates[index]
+        print("[CallManager] openMaxApp url=\(url.absoluteString.prefix(120))")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             UIApplication.shared.open(url, options: [:]) { success in
-                print("[CallManager] openMaxApp try url=\(url.absoluteString.prefix(120)) success=\(success)")
-                if success { return }
-                tryOpen(at: index + 1)
+                print("[CallManager] openMaxApp success=\(success)")
             }
         }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-            tryOpen(at: 0)
+        // Safety reset in case finishAnsweredCallIfPending never fires.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            self.maxOpenInFlight = false
         }
     }
 }
@@ -330,7 +320,7 @@ extension CallManager: CXProviderDelegate {
             // 3. Закрыть CallKit UI
             self.pendingEndAfterAnswer = callUUID
             Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(800))
+                try? await Task.sleep(for: .milliseconds(1500))
                 self.finishAnsweredCallIfPending(callUUID)
             }
             // 4. Сервер — в фоне, НЕ блокирует openMaxApp
@@ -353,6 +343,7 @@ extension CallManager: CXProviderDelegate {
         guard pendingEndAfterAnswer == callUUID else { return }
         pendingEndAfterAnswer = nil
         activeCalls[callUUID] = nil
+        maxOpenInFlight = false
         provider.reportCall(with: callUUID, endedAt: Date(), reason: .answeredElsewhere)
         print("[CallManager] finishAnsweredCallIfPending: reported endedAt for \(callUUID.uuidString)")
     }
@@ -378,12 +369,6 @@ extension CallManager: CXProviderDelegate {
             try audioSession.setActive(false, options: .notifyOthersOnDeactivation)
         } catch {
             print("[CallManager] didActivate deactivate error: \(error.localizedDescription)")
-        }
-        // If we were waiting for activation to end the answered call, do it now.
-        Task { @MainActor in
-            if let callUUID = self.pendingEndAfterAnswer {
-                self.finishAnsweredCallIfPending(callUUID)
-            }
         }
     }
 
