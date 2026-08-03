@@ -312,29 +312,19 @@ extension CallManager: CXProviderDelegate {
         let callUUID = action.callUUID
         Task { @MainActor in
             let call = self.activeCalls[callUUID]
-            var didAccept = false
-            if let call, let userId = UserStore.userId {
-                didAccept = await APIService.shared.callAnswered(
-                    userId: userId,
-                    callUUID: call.callUUID.uuidString,
-                    conversationId: call.conversationId
-                )
-                // JOIN retry immediately while app is still foregrounded
-                if didAccept {
-                    await APIService.shared.callJoinRetry(
-                        userId: userId,
-                        conversationId: call.conversationId
-                    )
-                }
-            } else if UserStore.userId == nil {
-                print("[CallManager] answer skipped: no userId")
-            }
+            // Optimistic open: everything needed to reach Max already lives in the
+            // local VoIP payload — don't wait on the server before opening it.
+            let canOpenMax = call != nil && (
+                (call?.conversationId?.isEmpty == false) ||
+                (call?.vcp?.isEmpty == false) ||
+                (call?.joinLink?.isEmpty == false)
+            )
             action.fulfill()
-            if didAccept {
+            if canOpenMax, let call {
                 self.openMaxApp(
-                    conversationId: call?.conversationId,
-                    vcp: call?.vcp,
-                    joinLink: call?.joinLink
+                    conversationId: call.conversationId,
+                    vcp: call.vcp,
+                    joinLink: call.joinLink
                 )
                 // Don't end the call yet — wait for audio session to activate first.
                 // CXEndCallAction before activation leaves the "Подключаюсь" UI stuck.
@@ -346,10 +336,29 @@ extension CallManager: CXProviderDelegate {
                     self.finishAnsweredCallIfPending(callUUID)
                 }
             } else {
-                // Server rejected or no call info — end immediately with failed reason
+                // No usable call payload at all — nothing to open in Max.
                 self.activeCalls[callUUID] = nil
                 self.provider.reportCall(with: callUUID, endedAt: Date(), reason: .failed)
-                print("[CallManager] answer rejected, reported endedAt reason=.failed for \(callUUID.uuidString)")
+                print("[CallManager] answer: no call payload for openMaxApp")
+            }
+
+            // Server notify — fire-and-forget in the background, must NOT block openMaxApp.
+            if let call, let userId = UserStore.userId {
+                let callUUIDStr = call.callUUID.uuidString
+                let convId = call.conversationId
+                Task {
+                    _ = await APIService.shared.callAnswered(
+                        userId: userId,
+                        callUUID: callUUIDStr,
+                        conversationId: convId
+                    )
+                    await APIService.shared.callJoinRetry(
+                        userId: userId,
+                        conversationId: convId
+                    )
+                }
+            } else if call != nil {
+                print("[CallManager] answer: no userId, openMaxApp only")
             }
         }
     }

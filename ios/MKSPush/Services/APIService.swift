@@ -19,6 +19,16 @@ nonisolated struct APIService: Sendable {
         return URLSession(configuration: config)
     }
 
+    /// Short-timeout, no-wait session for call notifications: Max is already opened
+    /// optimistically from the local VoIP payload, so these calls must never block that.
+    private var callSession: URLSession {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 3
+        config.timeoutIntervalForResource = 5
+        config.waitsForConnectivity = false
+        return URLSession(configuration: config)
+    }
+
     private static let decoder: JSONDecoder = {
         let d = JSONDecoder()
         return d
@@ -210,7 +220,7 @@ nonisolated struct APIService: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         do {
-            let (data, response) = try await session.data(for: request)
+            let (data, response) = try await callSession.data(for: request)
             guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
                 return false
             }
@@ -232,7 +242,7 @@ nonisolated struct APIService: Sendable {
         if let conversationId, !conversationId.isEmpty {
             body["conversation_id"] = conversationId
         }
-        await firePost(path: "api/call-declined/\(userId)", body: body)
+        await firePost(path: "api/call-declined/\(userId)", body: body, session: callSession)
     }
 
     func callJoinRetry(userId: String, conversationId: String?) async {
@@ -240,7 +250,7 @@ nonisolated struct APIService: Sendable {
         if let conversationId, !conversationId.isEmpty {
             body["conversation_id"] = conversationId
         }
-        await firePost(path: "api/call-join-retry/\(userId)", body: body)
+        await firePost(path: "api/call-join-retry/\(userId)", body: body, session: callSession)
     }
 
     // MARK: - Disconnect
@@ -304,14 +314,14 @@ nonisolated struct APIService: Sendable {
 
     // MARK: - Helpers
 
-    private func firePost(path: String, body: [String: String]) async {
+    private func firePost(path: String, body: [String: String], session: URLSession? = nil) async {
         let url = baseURL.appendingPathComponent(path)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         do {
-            _ = try await session.data(for: request)
+            _ = try await (session ?? self.session).data(for: request)
         } catch {
             print("[APIService] POST \(path) failed: \(error.localizedDescription)")
         }
