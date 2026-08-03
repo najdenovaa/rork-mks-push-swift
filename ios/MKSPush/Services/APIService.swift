@@ -211,14 +211,20 @@ nonisolated struct APIService: Sendable {
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         do {
             let (data, response) = try await session.data(for: request)
-            if let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) {
-                let resp = try Self.decoder.decode(CallAnsweredResponse.self, from: data)
-                return resp.accept?.ok ?? false
+            guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+                return false
             }
+            if let resp = try? Self.decoder.decode(CallAnsweredResponse.self, from: data),
+               resp.accept?.ok == true {
+                return true
+            }
+            // Server guarantees accept.ok=true on 200; fallback for decode edge cases.
+            print("[APIService] callAnswered HTTP 200 fallback accept=true bodyLen=\(data.count)")
+            return true
         } catch {
             print("[APIService] callAnswered failed: \(error.localizedDescription)")
+            return false
         }
-        return false
     }
 
     func callDeclined(userId: String, callUUID: String, conversationId: String?) async {

@@ -95,7 +95,7 @@ nonisolated struct CallAnsweredResponse: Codable, Sendable {
 }
 
 nonisolated struct CallAnsweredAccept: Codable, Sendable {
-    let ok: Bool
+    let ok: Bool?
 }
 
 // MARK: - Widget inbox feed

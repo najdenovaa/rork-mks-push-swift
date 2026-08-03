@@ -197,6 +197,8 @@ final class CallManager: NSObject, ObservableObject {
     }
 
     /// Opens the native Max app with accept parameters (tgt=accept). Never opens web.max.ru.
+    /// Tries max://call, then max://max.ru, then max:// as a last resort, stopping at the
+    /// first URL that UIApplication.shared.open reports as successful.
     private func openMaxApp(conversationId: String?, vcp: String?, joinLink: String?) {
         var items: [URLQueryItem] = []
         if let conversationId, !conversationId.isEmpty {
@@ -206,26 +208,38 @@ final class CallManager: NSObject, ObservableObject {
         if let vcp, !vcp.isEmpty { items.append(URLQueryItem(name: "vcp", value: vcp)) }
         if let joinLink, !joinLink.isEmpty { items.append(URLQueryItem(name: "joinLink", value: joinLink)) }
 
+        var candidates: [URL] = []
+
+        var callComps = URLComponents(string: "max://call")
+        callComps?.queryItems = items.isEmpty ? nil : items
+        if let callURL = callComps?.url { candidates.append(callURL) }
+
         var nativeComps = URLComponents()
         nativeComps.scheme = "max"
         nativeComps.host = "max.ru"
         nativeComps.queryItems = items.isEmpty ? nil : items
-        let nativeURL = nativeComps.url
+        if let nativeURL = nativeComps.url { candidates.append(nativeURL) }
 
-        var callComps = URLComponents(string: "max://call")
-        callComps?.queryItems = items.isEmpty ? nil : items
-        let callURL = callComps?.url
-
-        let maxRoot = URL(string: "max://")
+        if let maxRoot = URL(string: "max://") { candidates.append(maxRoot) }
 
         // No canOpenURL. No web.max.ru. Native Max only.
-        let url = nativeURL ?? callURL ?? maxRoot
-        guard let url else { return }
+        guard !candidates.isEmpty else { return }
 
-        print("[CallManager] openMaxApp tgt=accept scheme=\(url.scheme ?? "?") host=\(url.host ?? "-") urlPrefix=\(url.absoluteString.prefix(120))")
+        func tryOpen(at index: Int) {
+            guard index < candidates.count else {
+                print("[CallManager] openMaxApp all URLs failed conv=\(conversationId ?? "-") hasVcp=\(vcp != nil) hasJoinLink=\(joinLink != nil)")
+                return
+            }
+            let url = candidates[index]
+            UIApplication.shared.open(url, options: [:]) { success in
+                print("[CallManager] openMaxApp try url=\(url.absoluteString.prefix(120)) success=\(success)")
+                if success { return }
+                tryOpen(at: index + 1)
+            }
+        }
 
         DispatchQueue.main.async {
-            UIApplication.shared.open(url, options: [:], completionHandler: nil)
+            tryOpen(at: 0)
         }
     }
 }
@@ -312,6 +326,8 @@ extension CallManager: CXProviderDelegate {
                         conversationId: call.conversationId
                     )
                 }
+            } else if UserStore.userId == nil {
+                print("[CallManager] answer skipped: no userId")
             }
             action.fulfill()
             if didAccept {
