@@ -220,9 +220,13 @@ final class CallManager: NSObject, ObservableObject {
         nativeComps.queryItems = items.isEmpty ? nil : items
         if let nativeURL = nativeComps.url { candidates.append(nativeURL) }
 
+        var httpsComps = URLComponents(string: "https://max.ru")
+        httpsComps?.queryItems = items.isEmpty ? nil : items
+        if let httpsURL = httpsComps?.url { candidates.append(httpsURL) }
+
         if let maxRoot = URL(string: "max://") { candidates.append(maxRoot) }
 
-        // No canOpenURL. No web.max.ru. Native Max only.
+        // No canOpenURL. Native Max first, https://max.ru only as a fallback. 
         guard !candidates.isEmpty else { return }
 
         func tryOpen(at index: Int) {
@@ -238,7 +242,7 @@ final class CallManager: NSObject, ObservableObject {
             }
         }
 
-        DispatchQueue.main.async {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             tryOpen(at: 0)
         }
     }
@@ -311,54 +315,35 @@ extension CallManager: CXProviderDelegate {
     nonisolated func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
         let callUUID = action.callUUID
         Task { @MainActor in
-            let call = self.activeCalls[callUUID]
-            // Optimistic open: everything needed to reach Max already lives in the
-            // local VoIP payload — don't wait on the server before opening it.
-            let canOpenMax = call != nil && (
-                (call?.conversationId?.isEmpty == false) ||
-                (call?.vcp?.isEmpty == false) ||
-                (call?.joinLink?.isEmpty == false)
-            )
-            action.fulfill()
-            if canOpenMax, let call {
-                self.openMaxApp(
-                    conversationId: call.conversationId,
-                    vcp: call.vcp,
-                    joinLink: call.joinLink
-                )
-                // Don't end the call yet — wait for audio session to activate first.
-                // CXEndCallAction before activation leaves the "Подключаюсь" UI stuck.
-                self.pendingEndAfterAnswer = callUUID
-                print("[CallManager] answer fulfilled, pendingEndAfterAnswer=\(callUUID.uuidString)")
-                // Fallback: if audio session never activates, close after 800ms anyway.
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(800))
-                    self.finishAnsweredCallIfPending(callUUID)
-                }
-            } else {
-                // No usable call payload at all — nothing to open in Max.
-                self.activeCalls[callUUID] = nil
-                self.provider.reportCall(with: callUUID, endedAt: Date(), reason: .failed)
-                print("[CallManager] answer: no call payload for openMaxApp")
+            guard let call = self.activeCalls[callUUID] else {
+                action.fulfill()
+                return
             }
-
-            // Server notify — fire-and-forget in the background, must NOT block openMaxApp.
-            if let call, let userId = UserStore.userId {
-                let callUUIDStr = call.callUUID.uuidString
-                let convId = call.conversationId
+            // 1. Сразу fulfill — CallKit не блокирует open
+            action.fulfill()
+            // 2. Сразу открыть Max (данные из VoIP push, интернет не нужен)
+            self.openMaxApp(
+                conversationId: call.conversationId,
+                vcp: call.vcp,
+                joinLink: call.joinLink
+            )
+            // 3. Закрыть CallKit UI
+            self.pendingEndAfterAnswer = callUUID
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(800))
+                self.finishAnsweredCallIfPending(callUUID)
+            }
+            // 4. Сервер — в фоне, НЕ блокирует openMaxApp
+            if let userId = UserStore.userId {
+                let uid = userId
+                let uuidStr = call.callUUID.uuidString
+                let conv = call.conversationId
                 Task {
                     _ = await APIService.shared.callAnswered(
-                        userId: userId,
-                        callUUID: callUUIDStr,
-                        conversationId: convId
+                        userId: uid, callUUID: uuidStr, conversationId: conv
                     )
-                    await APIService.shared.callJoinRetry(
-                        userId: userId,
-                        conversationId: convId
-                    )
+                    await APIService.shared.callJoinRetry(userId: uid, conversationId: conv)
                 }
-            } else if call != nil {
-                print("[CallManager] answer: no userId, openMaxApp only")
             }
         }
     }
