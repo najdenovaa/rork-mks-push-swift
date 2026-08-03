@@ -309,21 +309,8 @@ extension CallManager: CXProviderDelegate {
                 action.fulfill()
                 return
             }
-            // 1. Сразу fulfill — CallKit не блокирует open
             action.fulfill()
-            // 2. Сразу открыть Max (данные из VoIP push, интернет не нужен)
-            self.openMaxApp(
-                conversationId: call.conversationId,
-                vcp: call.vcp,
-                joinLink: call.joinLink
-            )
-            // 3. Закрыть CallKit UI
-            self.pendingEndAfterAnswer = callUUID
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(1500))
-                self.finishAnsweredCallIfPending(callUUID)
-            }
-            // 4. Сервер — в фоне, НЕ блокирует openMaxApp
+            // Сервер — сразу в фоне, не блокирует закрытие CallKit / открытие Max
             if let userId = UserStore.userId {
                 let uid = userId
                 let uuidStr = call.callUUID.uuidString
@@ -335,17 +322,40 @@ extension CallManager: CXProviderDelegate {
                     await APIService.shared.callJoinRetry(userId: uid, conversationId: conv)
                 }
             }
+            self.pendingEndAfterAnswer = callUUID
+            // 1) Подождать audio session CallKit (~400ms)
+            // 2) Закрыть CallKit
+            // 3) Подождать dismiss (~200ms)
+            // 4) ОДИН раз openMaxApp
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(400))
+                self.finishAnsweredCallIfPending(callUUID)
+                try? await Task.sleep(for: .milliseconds(200))
+                self.openMaxApp(
+                    conversationId: call.conversationId,
+                    vcp: call.vcp,
+                    joinLink: call.joinLink
+                )
+            }
         }
     }
 
-    /// Reports the call as ended via provider.reportCall and cleans up bookkeeping.
+    /// Ends the answered call via CXEndCallAction so CallKit dismisses its UI, falling
+    /// back to provider.reportCall only if the transaction fails.
     private func finishAnsweredCallIfPending(_ callUUID: UUID) {
         guard pendingEndAfterAnswer == callUUID else { return }
         pendingEndAfterAnswer = nil
         activeCalls[callUUID] = nil
         maxOpenInFlight = false
-        provider.reportCall(with: callUUID, endedAt: Date(), reason: .answeredElsewhere)
-        print("[CallManager] finishAnsweredCallIfPending: reported endedAt for \(callUUID.uuidString)")
+        let end = CXEndCallAction(call: callUUID)
+        callController.request(CXTransaction(action: end)) { error in
+            if let error {
+                print("[CallManager] CXEndCallAction error: \(error.localizedDescription)")
+                self.provider.reportCall(with: callUUID, endedAt: Date(), reason: .answeredElsewhere)
+            } else {
+                print("[CallManager] CXEndCallAction ok for \(callUUID.uuidString)")
+            }
+        }
     }
 
     nonisolated func provider(_ provider: CXProvider, perform action: CXEndCallAction) {
